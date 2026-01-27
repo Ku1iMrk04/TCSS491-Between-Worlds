@@ -8,5 +8,8 @@ ASSET_MANAGER.downloadAll(() => {
 
 	gameEngine.init(ctx);
 
+	const player = new Player(gameEngine, 100, 500);
+	gameEngine.addEntity(player);
+
 	gameEngine.start();
 });
