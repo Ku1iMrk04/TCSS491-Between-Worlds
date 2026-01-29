@@ -1,6 +1,7 @@
 
 import { Timer } from "./timer.js";
 import { requestAnimFrame } from "./util.js";
+import CollisionManager from "./src/collision/collisionmanager.js";
 // This game shell was happily modified from Googler Seth Ladd's "Bad Aliens" game and his Google IO talk in 2011
 
 export class GameEngine {
@@ -11,6 +12,9 @@ export class GameEngine {
 
         // Everything that will be updated and drawn each frame
         this.entities = [];
+
+        // Collision detection
+        this.collisionManager = new CollisionManager();
 
         // Information on the input
         this.click = null;
@@ -75,8 +79,15 @@ export class GameEngine {
             this.rightclick = getXandY(e);
         });
 
-        this.ctx.canvas.addEventListener("keydown", event => this.keys[event.key] = true);
-        this.ctx.canvas.addEventListener("keyup", event => this.keys[event.key] = false);
+        window.addEventListener("keydown", event => {
+            // Normalize to lowercase to avoid Shift key issues
+            const key = event.key.length === 1 ? event.key.toLowerCase() : event.key;
+            this.keys[key] = true;
+        });
+        window.addEventListener("keyup", event => {
+            const key = event.key.length === 1 ? event.key.toLowerCase() : event.key;
+            this.keys[key] = false;
+        });
     };
 
     addEntity(entity) {
@@ -103,6 +114,9 @@ export class GameEngine {
                 entity.update();
             }
         }
+
+        // Check collisions after all entities have moved
+        this.collisionManager.checkAllCollisions(this.entities);
 
         for (let i = this.entities.length - 1; i >= 0; --i) {
             if (this.entities[i].removeFromWorld) {

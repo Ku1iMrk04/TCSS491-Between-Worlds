@@ -1,3 +1,4 @@
+import Collider from "../collision/collider.js";
 
 // Base Actor class
 class Actor {
@@ -15,6 +16,19 @@ class Actor {
         this.health = 100;
         this.name = "Actor";
         this.animator = null;
+        this.collider = null;
+    }
+
+    /**
+     * Set up a collider for this actor
+     * @param {Object} options - Collider options {offset, size, type, layer, isTrigger}
+     */
+    setCollider(options = {}) {
+        // Default size to actor's width/height
+        const defaults = {
+            size: { width: this.width, height: this.height }
+        };
+        this.collider = new Collider({ ...defaults, ...options });
     }
 
     initialize() {
@@ -23,6 +37,19 @@ class Actor {
 
     onCollision(other) {
         // Stub for collision logic
+    }
+
+    takeDamage(amount) {
+        this.health -= amount;
+        // if (this.health <= 0) {
+        //     this.health = 0;
+        //     this.onDeath();
+        // }
+    }
+
+    onDeath() {
+        // Stub for death logic - override in subclasses
+        this.removeFromWorld = true;
     }
 
     addState(name, state) {

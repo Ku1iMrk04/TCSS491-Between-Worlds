@@ -1,8 +1,9 @@
 import { GameEngine } from "./gameengine.js";
 import { AssetManager } from "./assetmanager.js";
+import { setupCollisions } from "./src/collision/collisionsetup.js";
 import Player from "./src/actors/player.js";
 import Enemy from "./src/actors/enemy.js";
-const gameEngine = new GameEngine();
+const gameEngine = new GameEngine({ debugging: true });
 
 const ASSET_MANAGER = new AssetManager();
 
@@ -11,7 +12,7 @@ ASSET_MANAGER.downloadAll(() => {
 	const ctx = canvas.getContext("2d");
 
 	gameEngine.init(ctx);
-
+	setupCollisions(gameEngine.collisionManager);
 
 	const player = new Player(gameEngine, 100, 500);
 	gameEngine.addEntity(player);

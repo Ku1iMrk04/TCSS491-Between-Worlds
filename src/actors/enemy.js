@@ -6,6 +6,21 @@ class Enemy extends Actor {
         super(game, x, y);
         this.ai = null;
         this.name = "Enemy";
+        this.damage = 10;  // Damage dealt to player on contact
+        this.setCollider({ layer: "enemy" });
+    }
+
+    onCollision(other) {
+        // Handle collision with other entities
+        console.log("Enemy collided with:", other.name);
+    }
+
+    takeDamage(amount) {
+        this.health -= amount;
+        if (this.health <= 0) {
+            this.health = 0;
+            this.onDeath();
+        }
     }
 
     update() {
