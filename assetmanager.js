@@ -1,3 +1,5 @@
+import SpriteAtlas from "./src/animation/spriteatlas.js";
+
 export class AssetManager {
     constructor() {
         this.successCount = 0;
@@ -18,7 +20,6 @@ export class AssetManager {
      */
     queueSprite(imagePath) {
         this.queueDownload(imagePath);
-
         // './assets/player.png' -> './assets/player.json'
         const metadataPath = imagePath.replace('.png', '.json');
 
@@ -84,13 +85,13 @@ export class AssetManager {
     /**
      * Get both image and metadata together as a sprite atlas
      * @param {string} imagePath - Path to the image
-     * @returns {object} Object with {image, metadata}
+     * @returns {SpriteAtlas} SpriteAtlas instance
      */
     getSpriteAtlas(imagePath) {
-        return {
-            image: this.getAsset(imagePath),
-            metadata: this.getMetadata(imagePath)
-        };
+        return new SpriteAtlas(
+            this.getAsset(imagePath),
+            this.getMetadata(imagePath)
+        );
     };
 }
 

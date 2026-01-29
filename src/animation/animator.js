@@ -1,17 +1,33 @@
 
 class Animator {
-    constructor( name) {
-        this.spriteAtlas = assetManager; // SpriteAtlas or null
+    constructor(name, assetManager) {
+        this.spriteAtlas = assetManager.getSpriteAtlas("assets/" + name + ".png"); // SpriteAtlas or null
         this.name = name; // object type name
         this.direction = "none"; // "left" | "right" | "none"
         this.currAnimationName = "idle";
-        this.currAnimationTransform = this.spriteAtlas.getAnimationSize(name);
+        this.scale = 1
+        // Safety check before calling getAnimationSize
+        if (this.spriteAtlas && this.spriteAtlas.metadata) {
+            this.currAnimationTransform = this.spriteAtlas.getAnimationSize("idle");
+        } else {
+            console.warn("SpriteAtlas or metadata not loaded for:", name);
+            this.currAnimationTransform = { w: 32, h: 32 }; // fallback
+        }
+
         this.currentFrame = 0;
-        this.speed = 0.1; // seconds per frame
+        this.speed = 0.3; // seconds per frame
         this.isLooping = true;
         this.is_outline = false;
         this.transparency = 1.0;
         this._frameTimer = 0;
+
+        console.log("Animator created:", {
+            name: this.name,
+            hasAtlas: !!this.spriteAtlas,
+            hasMetadata: !!(this.spriteAtlas && this.spriteAtlas.metadata),
+            hasSpriteSheet: !!(this.spriteAtlas && this.spriteAtlas.spriteSheet),
+            transform: this.currAnimationTransform
+        });
     }
 
     setAnimation(name, speed = this.speed, direction = this.direction, looping = this.isLooping) {
@@ -62,6 +78,10 @@ class Animator {
                     this.currentFrame = frameCount - 1;
                 }
             }
+
+            // Log when frame changes with coordinates
+            var sourceX = this.currentFrame * (anim.frameWidth + 2);
+            console.log("Frame changed to:", this.currentFrame, "| sourceX:", sourceX, "sourceY:", anim.yStart, "| animation:", this.currAnimationName);
         }
     };
 
@@ -69,10 +89,14 @@ class Animator {
         ctx.save();
         ctx.globalAlpha = this.transparency;
 
-        var w = this.currAnimationTransform.w;
-        var h = this.currAnimationTransform.h;
+        // Disable image smoothing for crisp pixel art
+        ctx.imageSmoothingEnabled = false;
+
+        var w = this.currAnimationTransform.w * this.scale;
+        var h = this.currAnimationTransform.h * this.scale;
 
         if (!this.spriteAtlas || !this.spriteAtlas.metadata) {
+            console.log("Drawing fallback - no atlas/metadata");
             ctx.strokeStyle = this.is_outline ? "#f00" : "#888";
             ctx.strokeRect(x, y, w, h);
             ctx.fillStyle = "#ccc";
@@ -91,22 +115,25 @@ class Animator {
 
         // If spriteSheet image exists, draw the actual sprite
         if (this.spriteAtlas.spriteSheet) {
-            var sourceX = this.currentFrame * anim.frameWidth;
-            var sourceY = anim.yStart;
+            // Each frame is 37x37 (35px sprite + 2px total padding)
+            // Skip 1px padding on left and top
+            var sourceX = this.currentFrame * (anim.frameWidth + 2) + 1;
+            var sourceY = anim.yStart + 1;
 
             // Handle direction flipping if needed
             if (this.direction === "left") {
                 ctx.scale(-1, 1);
                 ctx.drawImage(
                     this.spriteAtlas.spriteSheet,
-                    sourceX, sourceY, anim.frameWidth, anim.frameHeight,
+                    sourceX , sourceY, anim.frameWidth, anim.frameHeight,
                     -x - w, y, w, h
                 );
             } else {
                 ctx.drawImage(
                     this.spriteAtlas.spriteSheet,
-                    sourceX, sourceY, anim.frameWidth, anim.frameHeight,
-                    x, y, w, h
+                    sourceX , sourceY,
+                    anim.frameWidth, anim.frameHeight,
+                    x, y, w , h
                 );
             }
 
@@ -128,3 +155,5 @@ class Animator {
         ctx.restore();
     };
 };
+
+export default Animator;

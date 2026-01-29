@@ -10,8 +10,8 @@ class SpriteAtlas {
 // Returns the size of an animation
     getAnimationSize(animationName) {
         return {
-            w: this.metadata.animationName.frameWidth,
-            h: this.metadata.animationName.frameHeight
+            w: this.metadata[animationName].frameWidth,
+            h: this.metadata[animationName].frameHeight
         }
 
     }
@@ -22,3 +22,5 @@ class SpriteAtlas {
     //     return null;
     // }
 }
+
+export default SpriteAtlas;

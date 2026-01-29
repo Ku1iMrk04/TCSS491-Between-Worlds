@@ -2,13 +2,14 @@
 import Actor from "./actor.js";
 import Idle from "../states/idle.js";
 import Attack from "../states/attack.js";
-
+import Animator from "../animation/animator.js";
 class Player extends Actor {
     constructor(game, x, y) {
         super(game, x, y);
         this.name = "Player";
         this.facing = "right";  // Direction player is facing
         this.setCollider({ layer: "player" });
+        this.animator = new Animator("zero", this.game.assetManager)
 
         // Register states
         this.addState("idle", new Idle());
@@ -41,16 +42,20 @@ class Player extends Actor {
             if (this.game.down) this.y += this.speed * dt;
         }
 
+        // Update animator
+        this.animator.update(dt);
+
         super.update();
     }
 
     draw(ctx, game) {
-        ctx.save();
-        ctx.fillStyle = "#3498db";
-        ctx.fillRect(this.x, this.y, this.width, this.height);
-        ctx.fillStyle = "#fff";
-        ctx.fillText(this.name, this.x + 2, this.y + 16);
-        ctx.restore();
+        this.animator.draw(ctx, this.x, this.y);
+        // ctx.save();
+        // ctx.fillStyle = "#3498db";
+        // ctx.fillRect(this.x, this.y, this.width, this.height);
+        // ctx.fillStyle = "#fff";
+        // ctx.fillText(this.name, this.x + 2, this.y + 16);
+        // ctx.restore();
     }
 }
 
