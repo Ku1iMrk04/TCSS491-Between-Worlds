@@ -1,0 +1,14 @@
+{
+  "idle": {
+    "yStart": 0,
+    "frameCount": 9,
+    "frameWidth": 35,
+    "frameHeight": 35
+  },
+  "run": {
+    "yStart": 37,
+    "frameCount": 6,
+    "frameWidth": 32,
+    "frameHeight": 32
+  }
+}
