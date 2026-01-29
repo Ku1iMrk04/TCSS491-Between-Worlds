@@ -20,7 +20,13 @@ export class GameEngine {
         this.click = null;
         this.mouse = null;
         this.wheel = null;
-        this.keys = {};
+
+        // Universal input flags
+        this.left = false;
+        this.right = false;
+        this.up = false;
+        this.down = false;
+        this.space = false;
 
         // Options and the Details
         this.options = options || {
@@ -80,13 +86,51 @@ export class GameEngine {
         });
 
         window.addEventListener("keydown", event => {
-            // Normalize to lowercase to avoid Shift key issues
-            const key = event.key.length === 1 ? event.key.toLowerCase() : event.key;
-            this.keys[key] = true;
+            switch (event.code) {
+                case "KeyA":
+                case "ArrowLeft":
+                    this.left = true;
+                    break;
+                case "KeyD":
+                case "ArrowRight":
+                    this.right = true;
+                    break;
+                case "KeyW":
+                case "ArrowUp":
+                    this.up = true;
+                    break;
+                case "KeyS":
+                case "ArrowDown":
+                    this.down = true;
+                    break;
+                case "Space":
+                    this.space = true;
+                    break;
+            }
         });
+
         window.addEventListener("keyup", event => {
-            const key = event.key.length === 1 ? event.key.toLowerCase() : event.key;
-            this.keys[key] = false;
+            switch (event.code) {
+                case "KeyA":
+                case "ArrowLeft":
+                    this.left = false;
+                    break;
+                case "KeyD":
+                case "ArrowRight":
+                    this.right = false;
+                    break;
+                case "KeyW":
+                case "ArrowUp":
+                    this.up = false;
+                    break;
+                case "KeyS":
+                case "ArrowDown":
+                    this.down = false;
+                    break;
+                case "Space":
+                    this.space = false;
+                    break;
+            }
         });
     };
 
