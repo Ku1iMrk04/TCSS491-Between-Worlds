@@ -11,6 +11,7 @@ export function setupCollisions(collisionManager) {
     // Define which layers can collide with each other
     collisionManager.addLayerRule("player", "enemy");
     collisionManager.addLayerRule("player_attack", "enemy");
+    collisionManager.addLayerRule("enemy_attack", "player");
 
     // Player touching enemy = player takes damage
     collisionManager.onCollision("player", "enemy", (player, enemy, overlap) => {
@@ -41,4 +42,18 @@ export function setupCollisions(collisionManager) {
             }
         }
     });
+
+    // enemy attacking player
+    collisionManager.onCollision("enemy_attack", "player", (hitbox, player, overlap) => {
+    
+    if (!hitbox.hasHit(player)) {
+        hitbox.markHit(player);
+
+        if (player.takeDamage) {
+            player.takeDamage(hitbox.damage);
+        }
+
+        //hitbox.removeFromWorld = true;
+    }
+});
 }

@@ -13,7 +13,7 @@ class Actor {
         this.states = {};
         this.currentState = null;
         this.speed = 100;
-        this.health = 100;
+        this.health = 50; // changed for enemy testing
         this.name = "Actor";
         this.animator = null;
         this.collider = null;
@@ -41,10 +41,10 @@ class Actor {
 
     takeDamage(amount) {
         this.health -= amount;
-        // if (this.health <= 0) {
-        //     this.health = 0;
-        //     this.onDeath();
-        // }
+        if (this.health <= 0) {
+             this.health = 0;
+             this.onDeath();
+        }
     }
 
     onDeath() {
