@@ -35,6 +35,9 @@ class AttackHitbox {
         // Track what we've already hit this attack (prevent multi-hit)
         this.hitEntities = new Set();
 
+        // Lifetime timer (seconds)
+        this.life = 0.15;
+
         this.removeFromWorld = false;
         this.name = "AttackHitbox";
     }
@@ -62,6 +65,12 @@ class AttackHitbox {
             this.x = this.owner.x - this.collider.size.width;
         } else {
             this.x = this.owner.x + this.owner.width;
+        }
+
+        // Lifetime logic
+        this.life -= this.game.clockTick;
+        if (this.life <= 0) {
+            this.removeFromWorld = true;
         }
     }
 

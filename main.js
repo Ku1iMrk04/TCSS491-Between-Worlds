@@ -19,8 +19,12 @@ ASSET_MANAGER.downloadAll(() => {
 	const player = new Player(gameEngine, 100, 500);
 	gameEngine.addEntity(player);
 
-	const enemy = new Enemy(gameEngine, 300, 500);
-	gameEngine.addEntity(enemy);
+	const enemy1 = new Enemy(gameEngine, 300, 500);
+	const enemy2 = new Enemy(gameEngine, 500, 400);
+	const enemy3 = new Enemy(gameEngine, 700, 600);
+	gameEngine.addEntity(enemy1);
+	gameEngine.addEntity(enemy2);
+	gameEngine.addEntity(enemy3);
 
 	gameEngine.start();
 });
