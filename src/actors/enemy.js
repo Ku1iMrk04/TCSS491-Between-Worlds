@@ -1,11 +1,15 @@
 import Actor from "./actor.js";
-import AttackHitbox from "../collision/attackhitbox.js";    
+import AttackHitbox from "../collision/attackhitbox.js";
+import Animator from "../animation/animator.js";
 
 class Enemy extends Actor {
     constructor(game, x, y) {
         super(game, x, y);
         this.ai = null;
         this.name = "Enemy";
+        this.scale = 3;
+        this.width = 22 * this.scale;
+        this.height = 40 * this.scale;
         this.setCollider({ layer: "enemy" });
 
         this.health = 40;
@@ -23,7 +27,8 @@ class Enemy extends Actor {
 
         // facing hitbox placement
         this.facing = "left";
-
+        this.animator = new Animator("enemy_scientist", this.game.assetManager);
+        this.animator.setScale(this.scale);
         this.player = null;
     }
 
@@ -51,8 +56,8 @@ class Enemy extends Actor {
             damage: this.damage,
             knockback: 120,
             size: {
-                width: 28,
-                height: 24
+                width: 28 * (this.scale - 2),
+                height: 24 * this.scale
             },
             offset: {
                 x: 0,
@@ -105,36 +110,53 @@ class Enemy extends Actor {
         const dy = player.y - this.y;
         const dist = Math.hypot(dx, dy);
 
+        var faced = this.facing;
         this.facing = dx < 0 ? "left" : "right";
+        if (this.facing !== faced) {
+            this.animator.setDirection(this.facing);
+        }
 
         if (dist > this.aggroRange) {
-            this.state = "idle";
+            if (this.state !== "idle") {
+                this.state = "idle";
+                this.animator.setAnimation("idle", this.facing, true);
+            }
         }
         else if (dist > this.attackRange) {
-            this.state = "chase";
+            if (this.state !== "chase") {
+                this.state = "chase";
+                this.animator.setAnimation("walk", this.facing, true);
+            }
             const nx = dx / (dist || 1);
             const ny = dy / (dist || 1);
             this.x += nx * this.speed * dt;
             this.y += ny * this.speed * dt;
         }
         else {
-            this.state = "attack";
+            if (this.state !== "attack") {
+                this.state = "attack";
+                this.animator.setAnimation("idle", this.facing, true);
+            }
             if (this.attackTimer <= 0) {
                 this.performAttack();
             }
         }
+        this.animator.update(dt);
+
         // Stub for AI logic
         super.update();
+
     }
 
     draw(ctx, game) {
-        ctx.save();
-        ctx.fillStyle = "#e74c3c";
-        ctx.fillRect(this.x, this.y, this.width, this.height);
-        ctx.font = "9px sans-serif";
-        ctx.fillStyle = "#fff";
-        ctx.fillText(this.name, this.x + 2, this.y + 15);
-        ctx.restore();
+        this.animator.draw(ctx, this.x, this.y);
+        // ctx.save();
+        // ctx.fillStyle = "#e74c3c";
+        // ctx.fillRect(this.x, this.y, this.width, this.height);
+        // ctx.font = "9px sans-serif";
+        // ctx.fillStyle = "#fff";
+        // ctx.fillText(this.name, this.x + 2, this.y + 15);
+        // ctx.restore();
     }
 }
 

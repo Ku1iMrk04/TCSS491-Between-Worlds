@@ -17,6 +17,8 @@ class Actor {
         this.name = "Actor";
         this.animator = null;
         this.collider = null;
+        this.damageCooldown = 0.2; // seconds of invincibility after taking damage
+        this.damageCooldownTimer = 0;
     }
 
     /**
@@ -40,10 +42,15 @@ class Actor {
     }
 
     takeDamage(amount) {
-        this.health -= amount;
-        if (this.health <= 0) {
-             this.health = 0;
-             this.onDeath();
+        // Only take damage if cooldown has expired
+        if (this.damageCooldownTimer <= 0) {
+            this.health -= amount;
+            this.damageCooldownTimer = this.damageCooldown; // Start cooldown
+
+            if (this.health <= 0) {
+                this.health = 0;
+                this.onDeath();
+            }
         }
     }
 
@@ -68,12 +75,18 @@ class Actor {
     }
 
     update() {
+        // Update damage cooldown timer
+        if (this.damageCooldownTimer > 0) {
+            this.damageCooldownTimer -= this.game.clockTick;
+        }
+
         if (this.currentState && this.currentState.do) {
             this.currentState.do(this.game.clockTick);
         }
     }
 
     draw(ctx, game) {
+
         ctx.save();
         ctx.fillStyle = "#888";
         ctx.fillRect(this.x, this.y, this.width, this.height);

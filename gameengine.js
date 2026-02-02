@@ -172,13 +172,14 @@ export class GameEngine {
             return;
         }
 
-        // Draw latest things first
+        // Draw scene (background) first
+        const scene = this.sceneManager?.currentScene;
+        if (scene && scene.draw) scene.draw(this.ctx);
+
+        // Then draw entities on top
         for (let i = this.entities.length - 1; i >= 0; i--) {
             this.entities[i].draw(this.ctx, this);
         }
-
-        const scene = this.sceneManager?.currentScene;
-        if (scene && scene.draw) scene.draw(this.ctx);
     };
 
     update() {

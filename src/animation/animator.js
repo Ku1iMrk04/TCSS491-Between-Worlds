@@ -5,7 +5,7 @@ class Animator {
         this.name = name; // object type name
         this.direction = "none"; // "left" | "right" | "none"
         this.currAnimationName = "idle";
-        this.scale = 4
+        this.scale = 1;
         // Safety check before calling getAnimationSize
         if (this.spriteAtlas && this.spriteAtlas.metadata && this.spriteAtlas.metadata.animations) {
             this.currAnimationTransform = this.spriteAtlas.getAnimationSize("idle");
@@ -15,7 +15,7 @@ class Animator {
         }
 
         this.currentFrame = 0;
-        this.speed = 0.3; // seconds per frame
+        this.speed = 0.1; // seconds per frame (lower = faster)
         this.isLooping = true;
         this.is_outline = false;
         this.transparency = 1.0;
@@ -31,11 +31,10 @@ class Animator {
         });
     }
 
-    setAnimation(name, speed = this.speed, direction = this.direction, looping = this.isLooping) {
+    setAnimation(name,  direction = this.direction, looping = this.isLooping) {
         this.currAnimationName = name;
         this.currentFrame = 0;
-        this.currentAnimationTransform = this.spriteAtlas.getAnimationSize(name);
-        this.speed = speed;
+        this.currAnimationTransform = this.spriteAtlas.getAnimationSize(name);
         this.direction = direction;
         this.isLooping = looping;
         this._frameTimer = 0;
@@ -57,6 +56,9 @@ class Animator {
 
     showOutline(is_outline) {
         this.is_outline = !!is_outline;
+    };
+    setScale(scale) {
+        this.scale = scale;
     };
 
     update(dt) {

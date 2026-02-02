@@ -3,10 +3,12 @@ import Player from "../actors/player.js";
 import Enemy from "../actors/enemy.js";
 import DeathScene from "./deathscene.js";
 
+
 class GameScene extends Scene {
-    constructor(game) {
+    constructor(game, levelBgImage ) {
         super(game);
         this.isGameplay = true;
+        this.levelBgImage = levelBgImage;
 
         this.player = null;
     }
@@ -15,13 +17,13 @@ class GameScene extends Scene {
         // reset entities for a clean run
         this.game.entities = [];
 
-        // spawn player + enemies
-        this.player = new Player(this.game, 100, 500);
+        // spawn player + enemies (scaled for 1920x1080 canvas)
+        this.player = new Player(this.game, 300, 750);
         this.game.addEntity(this.player);
 
-        const enemy1 = new Enemy(this.game, 300, 500);
-        const enemy2 = new Enemy(this.game, 500, 400);
-        const enemy3 = new Enemy(this.game, 700, 600);
+        const enemy1 = new Enemy(this.game, 900, 750);
+        const enemy2 = new Enemy(this.game, 1500, 600);
+        const enemy3 = new Enemy(this.game, 1200, 840);
 
         this.game.addEntity(enemy1);
         this.game.addEntity(enemy2);
@@ -31,12 +33,23 @@ class GameScene extends Scene {
     update() {
         // If player is removed (dies), go to death scene
         if (this.player && this.player.removeFromWorld) {
-            this.game.sceneManager.changeScene(new DeathScene(this.game));
+            this.game.sceneManager.changeScene(new DeathScene(this.game, this.levelBgImage));
         }
     }
 
     draw(ctx) {
-        // TODO, currently draws HUD only, game engine calls draw for entities and HUD
+        // Disable anti-aliasing for game scene
+        ctx.imageSmoothingEnabled = false;
+        ctx.webkitImageSmoothingEnabled = false;
+        ctx.mozImageSmoothingEnabled = false;
+        ctx.msImageSmoothingEnabled = false;
+
+        // Draw level background first
+        if (this.levelBgImage) {
+            ctx.drawImage(this.levelBgImage, 0, 0, ctx.canvas.width, ctx.canvas.height);
+        }
+
+        // Then draw HUD on top
         this.drawLevelLabel(ctx);
         this.drawControlsHub(ctx);
         this.drawPlayerHealthBar(ctx);
@@ -47,23 +60,23 @@ class GameScene extends Scene {
 
         ctx.save();
         ctx.fillStyle = "black";
-        ctx.font = "22px Orbitron, Arial, sans-serif";
+        ctx.font = "66px Orbitron, Arial, sans-serif";
         ctx.textBaseline = "top";
 
         const textWidth = ctx.measureText(text).width;
         const x = (ctx.canvas.width - textWidth) / 2;
-        const y = 12;
+        const y = 36;
 
         ctx.fillText(text, x, y);
         ctx.restore();
     }
 
     drawControlsHub(ctx) {
-        const boxW = 260;
-        const boxH = 72;
-        const x = ctx.canvas.width - boxW - 16;
-        const y = 16;
-        const pad = 10;
+        const boxW = 520;
+        const boxH = 144;
+        const x = ctx.canvas.width - boxW - 32;
+        const y = 32;
+        const pad = 20;
 
         ctx.save();
 
@@ -79,11 +92,11 @@ class GameScene extends Scene {
 
         // text
         ctx.fillStyle = "#333";
-        ctx.font = "14px Arial";
+        ctx.font = "28px Arial";
         ctx.textBaseline = "top";
         ctx.fillText("Controls:", x + pad, y + pad);
-        ctx.fillText("Move: WASD / Arrow Keys", x + pad, y + pad + 20);
-        ctx.fillText("Attack: Space", x + pad, y + pad + 40);
+        ctx.fillText("Move: WASD / Arrow Keys", x + pad, y + pad + 40);
+        ctx.fillText("Attack: Space", x + pad, y + pad + 80);
 
         ctx.restore();
     }
@@ -94,10 +107,10 @@ class GameScene extends Scene {
         const maxHp = this.player.maxHealth ?? 50;
         const hp = Math.max(0, Math.min(this.player.health ?? maxHp, maxHp));
 
-        const x = 16;
-        const y = 44;
-        const w = 220;
-        const h = 18;
+        const x = 48;
+        const y = 132;
+        const w = 660;
+        const h = 54;
 
         // 50 green, 40 lime, 30 yellow, 20 orange, 10 red
         let color = "green";
@@ -111,11 +124,11 @@ class GameScene extends Scene {
 
         ctx.save();
 
-        // label
-        ctx.fillStyle = "#000";
-        ctx.font = "14px Arial";
+        // label with gray background box
+        ctx.fillStyle = "#333";
+        ctx.font = "42px Arial";
         ctx.textBaseline = "bottom";
-        ctx.fillText(`HP: ${hp}/${maxHp}`, x, y - 4);
+        ctx.fillText(`HP: ${hp}/${maxHp}`, x, y - 12);
 
         // bar background
         ctx.fillStyle = "#444";

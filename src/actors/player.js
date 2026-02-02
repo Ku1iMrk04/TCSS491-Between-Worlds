@@ -8,9 +8,14 @@ class Player extends Actor {
         super(game, x, y);
         this.name = "Player";
         this.facing = "right";  // Direction player is facing
+        this.scale = 3;
+        this.width = 35 * this.scale;
+        this.height = 35 * this.scale;
         this.setCollider({ layer: "player" });
         this.animator = new Animator("zero", this.game.assetManager)
-
+        this.animator.setScale(this.scale);
+        this.speed = 200;
+        this.currentAnimState = "idle";  // Track current animation state
         // Register states
         this.addState("idle", new Idle());
         this.addState("attack", new Attack());
@@ -30,7 +35,11 @@ class Player extends Actor {
             this.changeState("attack");
         }
 
+        // Check if player is moving
+        const isMoving = this.game.left || this.game.right || this.game.up || this.game.down;
+
         // Update facing direction (always, even during attack)
+        const oldFacing = this.facing;
         if (this.game.left) this.facing = "left";
         if (this.game.right) this.facing = "right";
 
@@ -40,6 +49,20 @@ class Player extends Actor {
             if (this.game.right) this.x += this.speed * dt;
             if (this.game.up) this.y -= this.speed * dt;
             if (this.game.down) this.y += this.speed * dt;
+
+            // Determine desired animation state
+            const desiredAnimState = isMoving ? "run" : "idle";
+
+            // Only update animation if state or facing changed
+            if (desiredAnimState !== this.currentAnimState || oldFacing !== this.facing) {
+                this.currentAnimState = desiredAnimState;
+                this.animator.setAnimation(this.currentAnimState, this.facing, true);
+            }
+        } else {
+            // During attack, update animator direction if facing changed
+            if (oldFacing !== this.facing) {
+                this.animator.setDirection(this.facing);
+            }
         }
 
         // Update animator
