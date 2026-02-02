@@ -176,6 +176,9 @@ export class GameEngine {
         for (let i = this.entities.length - 1; i >= 0; i--) {
             this.entities[i].draw(this.ctx, this);
         }
+
+        const scene = this.sceneManager?.currentScene;
+        if (scene && scene.draw) scene.draw(this.ctx);
     };
 
     update() {
@@ -188,7 +191,7 @@ export class GameEngine {
         if (this.sceneManager && !this.isGamePlayScene()) {
             return;
         }
-        
+
         let entitiesCount = this.entities.length;
 
         for (let i = 0; i < entitiesCount; i++) {
