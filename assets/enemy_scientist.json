@@ -1,0 +1,20 @@
+{
+  "marginWidth": 1,
+  "marginHeight": 1,
+  "xLineWidth": 1,
+  "yLineWidth": 1,
+  "animations": {
+    "idle": {
+      "yStart": 0,
+      "frameCount": 12,
+      "frameWidth": 22,
+      "frameHeight": 40
+    },
+    "walk": {
+      "yStart": 44,
+      "frameCount": 12,
+      "frameWidth": 23,
+      "frameHeight": 39
+    }
+  }
+}

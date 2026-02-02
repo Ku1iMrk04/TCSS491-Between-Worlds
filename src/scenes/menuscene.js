@@ -2,10 +2,10 @@ import Scene from "./scene.js";
 import GameScene from "./gamescene.js";
 
 class MenuScene extends Scene {
-    constructor(game, menuBgImage) {
+    constructor(game, menuBgImage, levelBgImage) {
         super(game);
         this.menuBgImage = menuBgImage;
-
+        this.levelBgImage = levelBgImage;
         this.options = ["Start Game", "Manual"];
         this.selectedIndex = 0;
 
@@ -41,7 +41,8 @@ class MenuScene extends Scene {
 
     activateSelection() {
         if (this.selectedIndex === 0) {
-            this.game.sceneManager.changeScene(new GameScene(this.game));
+
+            this.game.sceneManager.changeScene(new GameScene(this.game, this.levelBgImage));
         } else {
             this.showManual = !this.showManual;
         }

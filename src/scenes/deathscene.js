@@ -3,9 +3,10 @@ import GameScene from "./gamescene.js";
 import MenuScene from "./menuscene.js";
 
 class DeathScene extends Scene {
-    constructor(game) {
+    constructor(game, levelBgImage) {
         super(game);
 
+        this.levelBgImage = levelBgImage;
         this.options = ["Retry", "Main Menu"];
         this.selectedIndex = 0;
 
@@ -28,9 +29,10 @@ class DeathScene extends Scene {
 
     activateSelection() {
         if (this.selectedIndex === 0) {
-            this.game.sceneManager.changeScene(new GameScene(this.game));
+            this.game.sceneManager.changeScene(new GameScene(this.game, this.levelBgImage));
         } else {
-            this.game.sceneManager.changeScene(new MenuScene(this.game, this.game.menuBgImage));
+            const levelBg = this.game.assetManager.getAsset("assets/level_background.png");
+            this.game.sceneManager.changeScene(new MenuScene(this.game, this.game.menuBgImage, levelBg));
         }
     }
 

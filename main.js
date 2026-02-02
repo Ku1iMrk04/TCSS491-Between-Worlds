@@ -9,8 +9,14 @@ import MenuScene from "./src/scenes/menuscene.js";
 const gameEngine = new GameEngine({ debugging: true });
 
 const ASSET_MANAGER = new AssetManager();
+// Sprite sheets with animations (will load .json metadata)
 ASSET_MANAGER.queueSprite("assets/zero.png");
-ASSET_MANAGER.queueSprite("assets/menu_background.png");
+ASSET_MANAGER.queueSprite("assets/enemy_scientist.png");
+
+// Background images (no metadata needed)
+ASSET_MANAGER.queueDownload("assets/menu_background.png");
+ASSET_MANAGER.queueDownload("assets/level_background.png");
+
 
 ASSET_MANAGER.downloadAll(() => {
 	const canvas = document.getElementById("gameWorld");
@@ -23,8 +29,12 @@ ASSET_MANAGER.downloadAll(() => {
 
 	gameEngine.sceneManager = new SceneManager(gameEngine);
     const menuBg = ASSET_MANAGER.getAsset("assets/menu_background.png");
+
 	gameEngine.menuBgImage = menuBg;
-    gameEngine.sceneManager.changeScene(new MenuScene(gameEngine, menuBg));
+    const levelBg = ASSET_MANAGER.getAsset("assets/level_background.png");
+
+
+    gameEngine.sceneManager.changeScene(new MenuScene(gameEngine, menuBg, levelBg));
 
 	//const player = new Player(gameEngine, 100, 500);
 	//gameEngine.addEntity(player);

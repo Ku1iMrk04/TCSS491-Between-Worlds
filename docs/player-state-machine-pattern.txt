@@ -1,0 +1,462 @@
+================================================================================
+PLAYER STATE MACHINE DESIGN PATTERN
+For Platformer Action Games in JavaScript (ECS Compatible)
+================================================================================
+
+This pattern combines a Hierarchical State Machine (FSM) for high-level physical
+states with an Action/Command system for interruptible behaviors.
+
+================================================================================
+CORE STATE DEFINITIONS
+================================================================================
+
+const PlayerState = {
+  GROUNDED: 'grounded',
+  AIRBORNE: 'airborne',
+  ON_STAIRS: 'on_stairs',
+  DYING: 'dying',
+  DEAD: 'dead'
+};
+
+const ActionType = {
+  IDLE: 'idle',
+  RUN: 'run',
+  JUMP: 'jump',
+  ATTACK: 'attack',
+  ROLL: 'roll',
+  FALL: 'fall',
+  LAND: 'land',
+  // Death actions per context
+  DEATH_GROUND: 'death_ground',
+  DEATH_AIR: 'death_air',
+  DEATH_STAIRS: 'death_stairs'
+};
+
+================================================================================
+ACTION DEFINITIONS
+================================================================================
+
+const ActionDefinitions = {
+  [ActionType.IDLE]: {
+    interruptible: true,
+    loops: true,
+    airAllowed: false,
+    duration: null, // infinite until interrupted
+    transitions: {
+      canTransitionTo: [ActionType.RUN, ActionType.JUMP, ActionType.ATTACK, ActionType.ROLL],
+      canTransitionFrom: ['any']
+    }
+  },
+  [ActionType.RUN]: {
+    interruptible: true,
+    loops: true,
+    airAllowed: false,
+    duration: null,
+    transitions: {
+      canTransitionTo: [ActionType.IDLE, ActionType.JUMP, ActionType.ATTACK, ActionType.ROLL],
+      canTransitionFrom: [ActionType.IDLE, ActionType.LAND]
+    }
+  },
+  [ActionType.JUMP]: {
+    interruptible: true, // can attack mid-jump
+    loops: false,
+    airAllowed: true,
+    duration: null, // physics-driven
+    transitions: {
+      canTransitionTo: [ActionType.FALL, ActionType.ATTACK],
+      canTransitionFrom: [ActionType.IDLE, ActionType.RUN]
+    }
+  },
+  [ActionType.ATTACK]: {
+    interruptible: false,
+    loops: false,
+    airAllowed: true,
+    duration: 400, // ms
+    transitions: {
+      canTransitionTo: [], // nothing until complete
+      canTransitionFrom: [ActionType.IDLE, ActionType.RUN, ActionType.JUMP, ActionType.FALL]
+    },
+    onComplete: (player) => player.returnToDefaultAction()
+  },
+  [ActionType.ROLL]: {
+    interruptible: false,
+    loops: false,
+    airAllowed: false,
+    duration: 500,
+    transitions: {
+      canTransitionTo: [],
+      canTransitionFrom: [ActionType.IDLE, ActionType.RUN]
+    },
+    onComplete: (player) => player.returnToDefaultAction()
+  },
+  [ActionType.FALL]: {
+    interruptible: true,
+    loops: true,
+    airAllowed: true,
+    duration: null,
+    transitions: {
+      canTransitionTo: [ActionType.LAND, ActionType.ATTACK],
+      canTransitionFrom: [ActionType.JUMP]
+    }
+  },
+  [ActionType.LAND]: {
+    interruptible: false,
+    loops: false,
+    airAllowed: false,
+    duration: 150,
+    transitions: {
+      canTransitionTo: [],
+      canTransitionFrom: [ActionType.FALL]
+    },
+    onComplete: (player) => player.returnToDefaultAction()
+  },
+  // Death animations
+  [ActionType.DEATH_GROUND]: {
+    interruptible: false,
+    loops: false,
+    airAllowed: false,
+    duration: 800,
+    transitions: { canTransitionTo: [], canTransitionFrom: ['any'] },
+    onComplete: (player) => player.setDead()
+  },
+  [ActionType.DEATH_AIR]: {
+    interruptible: false,
+    loops: false,
+    airAllowed: true,
+    duration: null, // wait until grounded, then transition
+    transitions: { canTransitionTo: [ActionType.DEATH_GROUND], canTransitionFrom: ['any'] }
+  },
+  [ActionType.DEATH_STAIRS]: {
+    interruptible: false,
+    loops: false,
+    airAllowed: false,
+    duration: 1000,
+    transitions: { canTransitionTo: [], canTransitionFrom: ['any'] },
+    onComplete: (player) => player.setDead()
+  }
+};
+
+================================================================================
+ACTION COMPONENT
+================================================================================
+
+class ActionComponent {
+  constructor(entity) {
+    this.entity = entity;
+    this.currentAction = null;
+    this.actionTimer = 0;
+    this.queuedAction = null;
+  }
+
+  get definition() {
+    return this.currentAction ? ActionDefinitions[this.currentAction] : null;
+  }
+
+  canTransitionTo(newAction) {
+    const newDef = ActionDefinitions[newAction];
+    const currentDef = this.definition;
+
+    // Check if new action is allowed in current physical state
+    const stateComp = this.entity.getComponent('state');
+    if (!newDef.airAllowed && stateComp.isAirborne()) {
+      return false;
+    }
+
+    // If no current action, allow any
+    if (!currentDef) return true;
+
+    // Check if current action can be interrupted
+    if (!currentDef.interruptible) {
+      return false;
+    }
+
+    // Check transition rules
+    const canLeave = currentDef.transitions.canTransitionTo.includes(newAction) ||
+                     currentDef.transitions.canTransitionTo.includes('any');
+    const canEnter = newDef.transitions.canTransitionFrom.includes(this.currentAction) ||
+                     newDef.transitions.canTransitionFrom.includes('any');
+
+    return canLeave && canEnter;
+  }
+
+  trySetAction(newAction) {
+    if (this.canTransitionTo(newAction)) {
+      this.setAction(newAction);
+      return true;
+    }
+    return false;
+  }
+
+  setAction(action) {
+    const oldAction = this.currentAction;
+    this.currentAction = action;
+    this.actionTimer = 0;
+
+    // Emit event for animation system, sound, etc.
+    this.entity.emit('actionChanged', { from: oldAction, to: action });
+  }
+
+  update(deltaTime) {
+    if (!this.currentAction) return;
+
+    const def = this.definition;
+    
+    if (def.duration !== null) {
+      this.actionTimer += deltaTime;
+      
+      if (this.actionTimer >= def.duration) {
+        if (def.onComplete) {
+          def.onComplete(this.entity);
+        } else if (def.loops) {
+          this.actionTimer = 0;
+        }
+      }
+    }
+  }
+
+  forceAction(action) {
+    // Bypass transition rules (for death, damage, etc.)
+    this.setAction(action);
+  }
+}
+
+================================================================================
+STATE COMPONENT (Physical State)
+================================================================================
+
+class StateComponent {
+  constructor(entity) {
+    this.entity = entity;
+    this.currentState = PlayerState.GROUNDED;
+    this.previousState = null;
+  }
+
+  isAirborne() {
+    return this.currentState === PlayerState.AIRBORNE;
+  }
+
+  isOnStairs() {
+    return this.currentState === PlayerState.ON_STAIRS;
+  }
+
+  isDying() {
+    return this.currentState === PlayerState.DYING;
+  }
+
+  setState(newState) {
+    if (newState === this.currentState) return;
+    
+    this.previousState = this.currentState;
+    this.currentState = newState;
+    
+    this.entity.emit('stateChanged', { 
+      from: this.previousState, 
+      to: newState 
+    });
+  }
+
+  update(deltaTime) {
+    // Could check physics here to auto-transition states
+    const physics = this.entity.getComponent('physics');
+    
+    if (this.currentState !== PlayerState.DYING && 
+        this.currentState !== PlayerState.DEAD) {
+      if (physics && !physics.isGrounded) {
+        this.setState(PlayerState.AIRBORNE);
+      } else if (physics && physics.isGrounded && 
+                 this.currentState === PlayerState.AIRBORNE) {
+        this.setState(PlayerState.GROUNDED);
+      }
+    }
+  }
+}
+
+================================================================================
+PLAYER CONTROLLER (Input Handling)
+================================================================================
+
+class PlayerController {
+  constructor(entity) {
+    this.entity = entity;
+  }
+
+  handleInput(input) {
+    const action = this.entity.getComponent('action');
+    const state = this.entity.getComponent('state');
+
+    // Can't control while dying/dead
+    if (state.isDying() || state.currentState === PlayerState.DEAD) {
+      return;
+    }
+
+    // Map inputs to action attempts
+    if (input.attack) {
+      action.trySetAction(ActionType.ATTACK);
+    } else if (input.roll) {
+      action.trySetAction(ActionType.ROLL);
+    } else if (input.jump) {
+      action.trySetAction(ActionType.JUMP);
+    } else if (input.horizontal !== 0) {
+      action.trySetAction(ActionType.RUN);
+    } else {
+      action.trySetAction(ActionType.IDLE);
+    }
+  }
+
+  // Called by health system or damage handler
+  die() {
+    const state = this.entity.getComponent('state');
+    const action = this.entity.getComponent('action');
+
+    state.setState(PlayerState.DYING);
+
+    // Choose death animation based on current physical context
+    if (state.previousState === PlayerState.AIRBORNE || 
+        this.entity.getComponent('physics')?.isGrounded === false) {
+      action.forceAction(ActionType.DEATH_AIR);
+    } else if (state.previousState === PlayerState.ON_STAIRS) {
+      action.forceAction(ActionType.DEATH_STAIRS);
+    } else {
+      action.forceAction(ActionType.DEATH_GROUND);
+    }
+  }
+
+  returnToDefaultAction() {
+    const state = this.entity.getComponent('state');
+    const action = this.entity.getComponent('action');
+
+    if (state.isAirborne()) {
+      action.setAction(ActionType.FALL);
+    } else {
+      action.setAction(ActionType.IDLE);
+    }
+  }
+
+  setDead() {
+    this.entity.getComponent('state').setState(PlayerState.DEAD);
+    this.entity.emit('playerDied');
+  }
+}
+
+================================================================================
+ENTITY ASSEMBLY (Base Entity Class)
+================================================================================
+
+class Entity {
+  constructor() {
+    this.components = new Map();
+    this.listeners = new Map();
+  }
+
+  addComponent(name, component) {
+    this.components.set(name, component);
+    return this;
+  }
+
+  getComponent(name) {
+    return this.components.get(name);
+  }
+
+  emit(event, data) {
+    const handlers = this.listeners.get(event) || [];
+    handlers.forEach(handler => handler(data));
+  }
+
+  on(event, handler) {
+    if (!this.listeners.has(event)) {
+      this.listeners.set(event, []);
+    }
+    this.listeners.get(event).push(handler);
+  }
+
+  update(deltaTime) {
+    for (const component of this.components.values()) {
+      if (component.update) {
+        component.update(deltaTime);
+      }
+    }
+  }
+}
+
+================================================================================
+USAGE EXAMPLE
+================================================================================
+
+function createPlayer() {
+  const player = new Entity();
+
+  // Add components
+  player.addComponent('state', new StateComponent(player));
+  player.addComponent('action', new ActionComponent(player));
+  player.addComponent('controller', new PlayerController(player));
+  // player.addComponent('physics', new PhysicsComponent(player));
+  // player.addComponent('animation', new AnimationComponent(player));
+
+  // Wire up controller methods to entity for convenience
+  player.returnToDefaultAction = () => 
+    player.getComponent('controller').returnToDefaultAction();
+  player.setDead = () => 
+    player.getComponent('controller').setDead();
+  player.die = () => 
+    player.getComponent('controller').die();
+
+  // Hook up animation system
+  player.on('actionChanged', ({ from, to }) => {
+    console.log(`Action: ${from} -> ${to}`);
+    // player.getComponent('animation').play(to);
+  });
+
+  // Initialize
+  player.getComponent('action').setAction(ActionType.IDLE);
+
+  return player;
+}
+
+// Game loop example
+const player = createPlayer();
+
+function gameLoop(deltaTime) {
+  // Gather input
+  const input = {
+    horizontal: 0, // -1, 0, 1
+    jump: false,
+    attack: false,
+    roll: false
+  };
+
+  player.getComponent('controller').handleInput(input);
+  player.update(deltaTime);
+}
+
+================================================================================
+WHY THIS PATTERN?
+================================================================================
+
+| Requirement               | Solution                                        |
+|---------------------------|-------------------------------------------------|
+| Non-interruptible actions | `interruptible: false` in action definition     |
+| Air restrictions          | `airAllowed` flag + state check                 |
+| Custom transitions        | `transitions` object per action                 |
+| Context-aware death       | State component tracks location, controller     |
+|                           | picks appropriate death action                  |
+| Timed actions             | `duration` field + `onComplete` callback        |
+| ECS compatibility         | Everything is a component                       |
+
+================================================================================
+KEY BENEFITS
+================================================================================
+
+1. DATA-DRIVEN: Add new actions by adding to ActionDefinitions
+2. DECOUPLED: Animation, physics, and logic are separate concerns
+3. DEBUGGABLE: Easy to log state/action transitions
+4. EXTENSIBLE: Add combos, buffs, or new states without rewriting core logic
+
+================================================================================
+POTENTIAL EXTENSIONS
+================================================================================
+
+- Input buffering: Queue actions during non-interruptible states
+- Combo system: Track action history and allow special transitions
+- Animation blending: Use action timer progress for blend weights
+- State modifiers: Add temporary buffs that modify action properties
+- Priority system: Some actions can interrupt others based on priority
