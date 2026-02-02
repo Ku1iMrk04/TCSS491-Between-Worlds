@@ -27,6 +27,7 @@ export class GameEngine {
         this.up = false;
         this.down = false;
         this.space = false;
+        this.shift = false;
 
         // Scenes
         this.sceneManager = null;
@@ -121,6 +122,9 @@ export class GameEngine {
                 case "Space":
                     this.space = true;
                     break;
+                case "ShiftLeft":
+                    this.shift = true;
+                    break;
             }
         });
 
@@ -149,6 +153,9 @@ export class GameEngine {
                     break;
                 case "Space":
                     this.space = false;
+                    break;
+                case "ShiftLeft":
+                    this.shift = false;
                     break;
             }
         });
