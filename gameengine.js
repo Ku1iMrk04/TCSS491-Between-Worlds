@@ -29,6 +29,10 @@ export class GameEngine {
         this.space = false;
         this.shift = false;
 
+        // Scenes
+        this.sceneManager = null;
+        this.menuBgImage = null;
+
         // Options and the Details
         this.options = options || {
             debugging: false,
@@ -64,10 +68,16 @@ export class GameEngine {
         });
 
         this.ctx.canvas.addEventListener("click", e => {
+            const pos = getXandY(e);
             if (this.options.debugging) {
                 console.log("CLICK", getXandY(e));
             }
-            this.click = getXandY(e);
+            this.click = pos;
+
+            // scene click forwarding
+            if (this.sceneManager) {
+                this.sceneManager.onClick(pos.x, pos.y);
+            }
         });
 
         this.ctx.canvas.addEventListener("wheel", e => {
@@ -87,6 +97,11 @@ export class GameEngine {
         });
 
         window.addEventListener("keydown", event => {
+            
+            if (this.sceneManager) {
+                this.sceneManager.onKeyDown(event);
+            }
+
             switch (event.code) {
                 case "KeyA":
                 case "ArrowLeft":
@@ -114,6 +129,11 @@ export class GameEngine {
         });
 
         window.addEventListener("keyup", event => {
+
+            if (this.sceneManager) {
+                this.sceneManager.onKeyUp(event);
+            }
+
             switch (event.code) {
                 case "KeyA":
                 case "ArrowLeft":
@@ -145,17 +165,41 @@ export class GameEngine {
         this.entities.push(entity);
     };
 
+    isGamePlayScene() {
+        return !!(this.sceneManager && this.sceneManager.currentScene && this.sceneManager.currentScene.isGameplay);
+    }
+
     draw() {
         // Clear the whole canvas with transparent color (rgba(0, 0, 0, 0))
         this.ctx.clearRect(0, 0, this.ctx.canvas.width, this.ctx.canvas.height);
 
-        // Draw latest things first
+        // if not gameplay, let the scene fully draw and return
+        if (this.sceneManager && !this.isGamePlayScene()) {
+            this.sceneManager.draw(this.ctx);
+            return;
+        }
+
+        // Draw scene (background) first
+        const scene = this.sceneManager?.currentScene;
+        if (scene && scene.draw) scene.draw(this.ctx);
+
+        // Then draw entities on top
         for (let i = this.entities.length - 1; i >= 0; i--) {
             this.entities[i].draw(this.ctx, this);
         }
     };
 
     update() {
+        // always update current scene logic
+        if (this.sceneManager) {
+            this.sceneManager.update(this);
+        }
+
+        // if not gameplay, skip entity updates/collisions
+        if (this.sceneManager && !this.isGamePlayScene()) {
+            return;
+        }
+
         let entitiesCount = this.entities.length;
 
         for (let i = 0; i < entitiesCount; i++) {

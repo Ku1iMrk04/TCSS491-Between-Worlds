@@ -13,10 +13,11 @@ class Actor {
         this.states = {};
         this.currentState = null;
         this.speed = 100;
-        this.health = 100;
+        this.health = 50; // changed for enemy testing
         this.name = "Actor";
         this.animator = null;
         this.collider = null;
+
 
         // Physics properties
         this.gravity = 800;  // Pixels per second squared
@@ -25,6 +26,7 @@ class Actor {
 
         // Combat properties
         this.invulnerable = false;
+
     }
 
     /**
@@ -48,11 +50,16 @@ class Actor {
     }
 
     takeDamage(amount) {
-        this.health -= amount;
-        // if (this.health <= 0) {
-        //     this.health = 0;
-        //     this.onDeath();
-        // }
+        // Only take damage if cooldown has expired
+        if (this.damageCooldownTimer <= 0) {
+            this.health -= amount;
+            this.damageCooldownTimer = this.damageCooldown; // Start cooldown
+
+            if (this.health <= 0) {
+                this.health = 0;
+                this.onDeath();
+            }
+        }
     }
 
     onDeath() {
@@ -76,6 +83,7 @@ class Actor {
     }
 
     update() {
+
         const dt = this.game.clockTick;
 
         // Apply physics if not grounded
@@ -93,12 +101,14 @@ class Actor {
         this.y += this.vy * dt;
 
         // Let state handle behavior
+
         if (this.currentState && this.currentState.do) {
             this.currentState.do(dt);
         }
     }
 
     draw(ctx, game) {
+
         ctx.save();
         ctx.fillStyle = "#888";
         ctx.fillRect(this.x, this.y, this.width, this.height);

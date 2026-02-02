@@ -1,24 +1,33 @@
 
 // SpriteAtlas: handles sprite sheet and animation metadata
-function SpriteAtlas() {
-    this.spriteSheet = null; // HTMLImageElement or null
-    this.metadata = null;    // JSON or null
-}
+class SpriteAtlas {
+    constructor(spriteSheet, metadata) {
+        this.spriteSheet = spriteSheet; // HTMLImageElement or null
+        this.metadata = metadata;    // JSON or null
+        this.marginWidth = metadata ? metadata.marginWidth : 0;
+        this.marginHeight = metadata ? metadata.marginHeight : 0;
+        this.xLineWidth = metadata ? metadata.xLineWidth : 0;
+        this.yLineWidth = metadata ? metadata.yLineWidth : 0;
+    }
+
 
 // Returns the size of an animation
-SpriteAtlas.prototype.getAnimationSize = function(name) {
-    // Example metadata structure:
-    // this.metadata = {
-    //   "run": { "frames": 6, "size": {"x":32, "y":32} }, ...
-    // }
-    if (!this.metadata || !this.metadata[name]) return { x: 32, y: 32 };
-    return this.metadata[name].size || { x: 32, y: 32 };
-};
+    getAnimationSize(animationName) {
+        return {
+            w: this.metadata.animations[animationName].frameWidth,
+            h: this.metadata.animations[animationName].frameHeight
+        }
 
-SpriteAtlas.prototype.getFrame = function(animationName, frameIndex, direction) {
-    // Would return frame info from metadata
-    // For now, just return null
-    return null;
-};
+    }
+    getFrameGap(){
+        return (this.marginWidth * 2) + this.xLineWidth;
+    }
+
+    // getFrame(animationName, frameIndex, direction) {
+    //     // Would return frame info from metadata
+    //     // For now, just return null
+    //     return null;
+    // }
+}
 
 export default SpriteAtlas;

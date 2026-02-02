@@ -1,0 +1,26 @@
+{
+  "marginWidth": 1,
+  "marginHeight": 1,
+  "xLineWidth": 1,
+  "yLineWidth": 1,
+  "animations": {
+    "idle": {
+      "yStart": 0,
+      "frameCount": 9,
+      "frameWidth": 35,
+      "frameHeight": 35
+    },
+    "run": {
+      "yStart": 74,
+      "frameCount": 10,
+      "frameWidth": 41,
+      "frameHeight": 32
+    },
+    "attack": {
+      "yStart": 483,
+      "frameCount": 7,
+      "frameWidth": 49,
+      "frameHeight": 39
+    }
+  }
+}
