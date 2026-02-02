@@ -17,6 +17,14 @@ class Actor {
         this.name = "Actor";
         this.animator = null;
         this.collider = null;
+
+        // Physics properties
+        this.gravity = 800;  // Pixels per second squared
+        this.terminalVelocity = 600;  // Max falling speed
+        this.grounded = false;
+
+        // Combat properties
+        this.invulnerable = false;
     }
 
     /**
@@ -68,8 +76,25 @@ class Actor {
     }
 
     update() {
+        const dt = this.game.clockTick;
+
+        // Apply physics if not grounded
+        if (!this.grounded) {
+            this.vy += this.gravity * dt;
+
+            // Terminal velocity
+            if (this.vy > this.terminalVelocity) {
+                this.vy = this.terminalVelocity;
+            }
+        }
+
+        // Apply velocity to position
+        this.x += this.vx * dt;
+        this.y += this.vy * dt;
+
+        // Let state handle behavior
         if (this.currentState && this.currentState.do) {
-            this.currentState.do(this.game.clockTick);
+            this.currentState.do(dt);
         }
     }
 
