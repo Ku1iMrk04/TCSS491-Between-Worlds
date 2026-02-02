@@ -131,8 +131,9 @@ class Enemy extends Actor {
         ctx.save();
         ctx.fillStyle = "#e74c3c";
         ctx.fillRect(this.x, this.y, this.width, this.height);
+        ctx.font = "9px sans-serif";
         ctx.fillStyle = "#fff";
-        ctx.fillText(this.name, this.x + 2, this.y + 16);
+        ctx.fillText(this.name, this.x + 2, this.y + 15);
         ctx.restore();
     }
 }
