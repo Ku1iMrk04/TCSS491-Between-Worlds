@@ -36,8 +36,7 @@ class GameScene extends Scene {
     }
 
     draw(ctx) {
-        // Gameplay drawing happens via GameEngine drawing entities
-        // You can add HUD overlays here later if you want.
+        // TODO
     }
 }
 
