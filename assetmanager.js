@@ -88,9 +88,11 @@ export class AssetManager {
      * @returns {SpriteAtlas} SpriteAtlas instance
      */
     getSpriteAtlas(imagePath) {
+        const metadata = this.getMetadata(imagePath);
+        console.log("getSpriteAtlas called with:", imagePath, "| metadata:", metadata, "| cache keys:", Object.keys(this.cache));
         return new SpriteAtlas(
             this.getAsset(imagePath),
-            this.getMetadata(imagePath)
+            metadata
         );
     };
 }

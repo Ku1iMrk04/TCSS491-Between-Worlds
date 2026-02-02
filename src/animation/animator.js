@@ -5,9 +5,9 @@ class Animator {
         this.name = name; // object type name
         this.direction = "none"; // "left" | "right" | "none"
         this.currAnimationName = "idle";
-        this.scale = 1
+        this.scale = 4
         // Safety check before calling getAnimationSize
-        if (this.spriteAtlas && this.spriteAtlas.metadata) {
+        if (this.spriteAtlas && this.spriteAtlas.metadata && this.spriteAtlas.metadata.animations) {
             this.currAnimationTransform = this.spriteAtlas.getAnimationSize("idle");
         } else {
             console.warn("SpriteAtlas or metadata not loaded for:", name);
@@ -20,7 +20,8 @@ class Animator {
         this.is_outline = false;
         this.transparency = 1.0;
         this._frameTimer = 0;
-
+        this.frameGap = this.spriteAtlas.getFrameGap();
+        this.initialFrameGap = this.frameGap - this.spriteAtlas.marginWidth;
         console.log("Animator created:", {
             name: this.name,
             hasAtlas: !!this.spriteAtlas,
@@ -63,7 +64,7 @@ class Animator {
         this._frameTimer += dt;
 
         if (!this.spriteAtlas || !this.spriteAtlas.metadata) return;
-        var anim = this.spriteAtlas.metadata[this.currAnimationName];
+        var anim = this.spriteAtlas.metadata.animations[this.currAnimationName];
         if (!anim) return;
 
         var frameCount = anim.frameCount;
@@ -80,8 +81,8 @@ class Animator {
             }
 
             // Log when frame changes with coordinates
-            var sourceX = this.currentFrame * (anim.frameWidth + 2);
-            console.log("Frame changed to:", this.currentFrame, "| sourceX:", sourceX, "sourceY:", anim.yStart, "| animation:", this.currAnimationName);
+            var sourceX = this.currentFrame * (anim.frameWidth + 3) + 2;
+            //console.log("Frame changed to:", this.currentFrame, "| sourceX:", sourceX, "sourceY:", anim.yStart, "| animation:", this.currAnimationName);
         }
     };
 
@@ -107,7 +108,7 @@ class Animator {
             return;
         }
 
-        var anim = this.spriteAtlas.metadata[this.currAnimationName];
+        var anim = this.spriteAtlas.metadata.animations[this.currAnimationName];
         if (!anim) {
             ctx.restore();
             return;
@@ -117,8 +118,11 @@ class Animator {
         if (this.spriteAtlas.spriteSheet) {
             // Each frame is 37x37 (35px sprite + 2px total padding)
             // Skip 1px padding on left and top
-            var sourceX = this.currentFrame * (anim.frameWidth + 2) + 1;
-            var sourceY = anim.yStart + 1;
+
+            var sourceX = this.currentFrame * (anim.frameWidth + this.frameGap) + this.initialFrameGap;
+
+            var sourceY = anim.yStart + 2;
+            console.log("Frame changed to:", this.currentFrame, "| sourceX:", sourceX, "sourceY:", anim.yStart, "| animation:", this.currAnimationName);
 
             // Handle direction flipping if needed
             if (this.direction === "left") {
