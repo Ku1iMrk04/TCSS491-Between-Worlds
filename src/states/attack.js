@@ -30,11 +30,29 @@ class Attack extends State {
     }
 
     do(dt) {
+        const entity = this.myEntity;
+        const game = entity.game;
+
         this.attackTimer += dt;
+
+        // Allow movement while attacking
+        if (game.left) {
+            entity.vx = -entity.speed;
+            entity.facing = "left";
+        } else if (game.right) {
+            entity.vx = entity.speed;
+            entity.facing = "right";
+        } else {
+            entity.vx = 0;
+        }
 
         // End attack after duration
         if (this.attackTimer >= this.attackDuration) {
-            this.myEntity.changeState("idle");
+            if (game.left || game.right) {
+                entity.changeState("run");
+            } else {
+                entity.changeState("idle");
+            }
         }
     }
 

@@ -6,7 +6,7 @@ class Jump extends State {
         const entity = this.myEntity;
 
         // Apply initial jump velocity (negative = upward)
-        entity.vy = -400;  // Jump strength
+        entity.vy = -550;  // Jump strength
         entity.grounded = false;
     }
 
