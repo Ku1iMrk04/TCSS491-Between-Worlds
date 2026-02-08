@@ -1,11 +1,16 @@
 
 class Animator {
     constructor(name, assetManager) {
-        this.spriteAtlas = assetManager.getSpriteAtlas("assets/" + name + ".png"); // SpriteAtlas or null
+        this.assetManager = assetManager;
+
+        this.spriteAtlas = this.assetManager.getSpriteAtlas("assets/" + name + ".png"); // SpriteAtlas or null
         this.name = name; // object type name
         this.direction = "none"; // "left" | "right" | "none"
         this.currAnimationName = "idle";
         this.scale = 1;
+        this.fallbackImage = this.assetManager.getAsset("assets/NoSpriteBudda.png"); // Fallback image
+        this.animationMissing = false; // Track if current animation is missing
+
         // Safety check before calling getAnimationSize
         if (this.spriteAtlas && this.spriteAtlas.metadata && this.spriteAtlas.metadata.animations) {
             this.currAnimationTransform = this.spriteAtlas.getAnimationSize("idle");
@@ -32,12 +37,20 @@ class Animator {
     }
 
     setAnimation(name,  direction = this.direction, looping = this.isLooping) {
-        this.currAnimationName = name;
-        this.currentFrame = 0;
-        this.currAnimationTransform = this.spriteAtlas.getAnimationSize(name);
-        this.direction = direction;
-        this.isLooping = looping;
-        this._frameTimer = 0;
+        // Check if animation exists
+        if (this.spriteAtlas && this.spriteAtlas.hasAnimation(name)) {
+            this.currAnimationName = name;
+            this.currentFrame = 0;
+            this.currAnimationTransform = this.spriteAtlas.getAnimationSize(name);
+            this.direction = direction;
+            this.isLooping = looping;
+            this._frameTimer = 0;
+            this.animationMissing = false;
+        } else {
+            console.warn(`Animation "${name}" does not exist, using fallback image`);
+            this.animationMissing = true;
+            this.currAnimationName = name; // Still track what was requested
+        }
     };
 
     setTransparency(percentage) {
@@ -111,7 +124,24 @@ class Animator {
         }
 
         var anim = this.spriteAtlas.metadata.animations[this.currAnimationName];
-        if (!anim) {
+
+        // If animation is missing, draw NoSpriteBudda.png fallback
+        if (!anim || this.animationMissing) {
+            if (this.fallbackImage) {
+                ctx.drawImage(this.fallbackImage, x, y, w, h);
+                // Draw text showing which animation was requested
+                ctx.fillStyle = "#ff0";
+                ctx.font = "12px monospace";
+                ctx.fillText(`Missing: ${this.currAnimationName}`, x, y - 5);
+            } else {
+                // Ultimate fallback if NoSpriteBudda.png isn't loaded
+                ctx.strokeStyle = "#f00";
+                ctx.strokeRect(x, y, w, h);
+                ctx.fillStyle = "#fcc";
+                ctx.fillRect(x, y, w, h);
+                ctx.fillStyle = "#f00";
+                ctx.fillText(`Missing: ${this.currAnimationName}`, x + 2, y + 16);
+            }
             ctx.restore();
             return;
         }

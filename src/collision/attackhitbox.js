@@ -1,4 +1,5 @@
 import Collider from "./collider.js";
+import Animator from "../animation/animator.js";
 
 /**
  * A temporary hitbox spawned during attacks.
@@ -23,6 +24,13 @@ class AttackHitbox {
             layer: options.layer || "player_attack",
             isTrigger: true  // Pass-through, doesn't push entities
         });
+
+        // Create animator for attack slash visual effect
+        if (owner.animator && owner.game.assetManager) {
+            this.animator = new Animator("zero", owner.game.assetManager);
+            this.animator.setScale(owner.scale || 3);
+            this.animator.setAnimation("attack_slash", owner.facing, false);
+        }
 
         // Current position (account for facing direction)
         this.y = owner.y + this.offsetY;
@@ -57,6 +65,8 @@ class AttackHitbox {
     }
 
     update() {
+        const dt = this.game.clockTick;
+
         // Follow the owner's position
         this.y = this.owner.y + this.offsetY;
 
@@ -67,25 +77,50 @@ class AttackHitbox {
             this.x = this.owner.x + this.owner.width;
         }
 
+        // Update slash animation
+        if (this.animator) {
+            this.animator.update(dt);
+            // Update direction if owner changes facing mid-attack
+            this.animator.setDirection(this.owner.facing);
+        }
+
         // Lifetime logic
-        this.life -= this.game.clockTick;
+        this.life -= dt;
         if (this.life <= 0) {
             this.removeFromWorld = true;
         }
     }
 
     draw(ctx, game) {
-        // Always draw for now to debug
-        ctx.save();
-        ctx.strokeStyle = "red";
-        ctx.lineWidth = 3;
-        ctx.strokeRect(
-            this.x,
-            this.y,
-            this.collider.size.width,
-            this.collider.size.height
-        );
-        ctx.restore();
+        // Draw the attack slash animation
+        if (this.animator) {
+            // Position slash to match hitbox position
+            let slashX = this.x;
+            const slashY = this.owner.y; // Keep vertically aligned with player
+
+            // When facing left, shift 96 pixels to the right
+            // When facing right, position normally
+            if (this.owner.facing === "left") {
+                slashX += 64;  // Add to move right
+            }
+
+            this.animator.draw(ctx, slashX, slashY);
+        }
+
+        // Draw hitbox in debug mode
+        if (game.debugging) {
+            ctx.save();
+            ctx.strokeStyle = "red";
+            ctx.lineWidth = 2;
+            ctx.globalAlpha = 0.5;
+            ctx.strokeRect(
+                this.x,
+                this.y,
+                this.collider.size.width,
+                this.collider.size.height
+            );
+            ctx.restore();
+        }
     }
 }
 

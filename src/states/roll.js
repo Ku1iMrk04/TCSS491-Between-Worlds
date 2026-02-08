@@ -28,6 +28,12 @@ class Roll extends State {
         // Keep grounded during roll
         entity.grounded = true;
         entity.vy = 0;
+
+        // Set roll animation (non-looping)
+        // Will use fallback NoSpriteBudda.png until roll animation is added to zero.json
+        if (entity.animator) {
+            entity.animator.setAnimation("roll", entity.facing, false);
+        }
     }
 
     do(dt) {
