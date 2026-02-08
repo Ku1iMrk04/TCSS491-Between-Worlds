@@ -17,6 +17,10 @@ ASSET_MANAGER.queueSprite("assets/enemy_scientist.png");
 ASSET_MANAGER.queueDownload("assets/menu_background.png");
 ASSET_MANAGER.queueDownload("assets/level_background.png");
 
+// Tileset images for the prison map
+ASSET_MANAGER.queueDownload("assets/prison_background.png");
+ASSET_MANAGER.queueDownload("assets/prison_foreground.png");
+
 
 ASSET_MANAGER.downloadAll(async () => {
 	const canvas = document.getElementById("gameWorld");
@@ -25,8 +29,14 @@ ASSET_MANAGER.downloadAll(async () => {
 	gameEngine.init(ctx);
 	gameEngine.assetManager = ASSET_MANAGER;
 
-	// Load the tilemap
-	const tileMap = await mapLoader.load("assets/maps/level1.json");
+	// Get tileset images
+	const tilesets = {
+		background: ASSET_MANAGER.getAsset("assets/prison_background.png"),
+		foreground: ASSET_MANAGER.getAsset("assets/prison_foreground.png")
+	};
+
+	// Load the tilemap with tilesets
+	const tileMap = await mapLoader.load("assets/maps/prison.json", tilesets);
 	gameEngine.tileMap = tileMap;
 
 	setupCollisions(gameEngine.collisionManager);

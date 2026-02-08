@@ -51,9 +51,20 @@ class GameScene extends Scene {
         ctx.mozImageSmoothingEnabled = false;
         ctx.msImageSmoothingEnabled = false;
 
-        // Draw level background first
-        if (this.levelBgImage) {
-            ctx.drawImage(this.levelBgImage, 0, 0, ctx.canvas.width, ctx.canvas.height);
+        // Scale factor: map is 960x640, canvas is 1920x1080
+        const scale = 2;
+
+        ctx.save();
+        ctx.scale(scale, scale);
+
+        // Draw tilemap background layer first
+        if (this.game.tileMap) {
+            this.game.tileMap.drawBackground(ctx);
+        }
+
+        // Draw tilemap foreground layer (platforms/collision tiles)
+        if (this.game.tileMap) {
+            this.game.tileMap.drawForeground(ctx);
         }
 
         // Draw tilemap collision debug (red tiles show solid areas)
@@ -61,7 +72,9 @@ class GameScene extends Scene {
             this.game.tileMap.drawDebug(ctx);
         }
 
-        // Then draw HUD on top
+        ctx.restore();
+
+        // Then draw HUD on top (not scaled)
         this.drawLevelLabel(ctx);
         this.drawControlsHub(ctx);
         this.drawPlayerHealthBar(ctx);

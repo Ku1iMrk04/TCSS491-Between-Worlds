@@ -1,13 +1,15 @@
 import TileMap from "./tilemap.js";
 
 /**
- * MapLoader - Utility for loading Tiled JSON maps
+ * MapLoader - Utility for loading Tiled JSON maps with multiple tilesets
  *
  * Usage:
  *   const loader = new MapLoader();
- *   loader.queueMap("assets/maps/level1.json");
- *   await loader.loadAll();
- *   const tileMap = loader.getMap("assets/maps/level1.json");
+ *   const tilesets = {
+ *       background: backgroundImage,
+ *       foreground: foregroundImage
+ *   };
+ *   const tileMap = await loader.load("assets/maps/level1.json", tilesets);
  */
 class MapLoader {
     constructor() {
@@ -28,10 +30,10 @@ class MapLoader {
 
     /**
      * Load all queued maps
-     * @param {HTMLImageElement} [tileset] - Optional tileset image to use for all maps
+     * @param {Object} tilesets - Object containing tileset images { background, foreground }
      * @returns {Promise} Resolves when all maps are loaded
      */
-    async loadAll(tileset = null) {
+    async loadAll(tilesets = {}) {
         const promises = this.queue.map(async (path) => {
             try {
                 const response = await fetch(path);
@@ -40,7 +42,7 @@ class MapLoader {
                 }
                 const data = await response.json();
                 this.mapData[path] = data;
-                this.maps[path] = new TileMap(data, tileset);
+                this.maps[path] = new TileMap(data, tilesets);
                 console.log(`Loaded map: ${path}`);
             } catch (err) {
                 console.error(`Error loading map ${path}:`, err);
@@ -54,17 +56,17 @@ class MapLoader {
     /**
      * Load a single map immediately
      * @param {string} path - Path to Tiled JSON file
-     * @param {HTMLImageElement} [tileset] - Optional tileset image
+     * @param {Object} tilesets - Object containing tileset images { background, foreground }
      * @returns {Promise<TileMap>} The loaded TileMap
      */
-    async load(path, tileset = null) {
+    async load(path, tilesets = {}) {
         const response = await fetch(path);
         if (!response.ok) {
             throw new Error(`Failed to load map: ${path}`);
         }
         const data = await response.json();
         this.mapData[path] = data;
-        this.maps[path] = new TileMap(data, tileset);
+        this.maps[path] = new TileMap(data, tilesets);
         console.log(`Loaded map: ${path}`);
         return this.maps[path];
     }

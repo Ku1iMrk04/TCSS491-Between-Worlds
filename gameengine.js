@@ -183,10 +183,16 @@ export class GameEngine {
         const scene = this.sceneManager?.currentScene;
         if (scene && scene.draw) scene.draw(this.ctx);
 
-        // Then draw entities on top
+        // Scale factor for map rendering (map is 960x640, canvas is 1920x1080)
+        const scale = 2;
+
+        // Draw entities scaled to match the map
+        this.ctx.save();
+        this.ctx.scale(scale, scale);
         for (let i = this.entities.length - 1; i >= 0; i--) {
             this.entities[i].draw(this.ctx, this);
         }
+        this.ctx.restore();
     };
 
     update() {
