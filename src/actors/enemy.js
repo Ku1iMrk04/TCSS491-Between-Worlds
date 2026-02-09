@@ -7,7 +7,7 @@ class Enemy extends Actor {
         super(game, x, y);
         this.ai = null;
         this.name = "Enemy";
-        this.scale = 3;
+        this.scale = 2;
         this.width = 22 * this.scale;
         this.height = 40 * this.scale;
         this.setCollider({ layer: "enemy" });

@@ -12,7 +12,7 @@ class Player extends Actor {
         super(game, x, y);
         this.name = "Player";
         this.facing = "right";  // Direction player is facing
-        this.scale = 3;
+        this.scale = 2;
         this.width = 35 * this.scale;
         this.height = 35 * this.scale;
         this.setCollider({ layer: "player" });
