@@ -2,14 +2,67 @@
 import State from "./state.js";
 
 class Roll extends State {
+    constructor() {
+        super();
+        this.rollDuration = 0.4;  // Roll lasts 0.4 seconds
+        this.rollSpeed = 300;  // Roll movement speed
+        this.timeRemaining = 0;
+    }
+
     enter() {
-        // Stub for entering roll
+        const entity = this.myEntity;
+
+        // Set invulnerability
+        entity.invulnerable = true;
+
+        // Set roll duration
+        this.timeRemaining = this.rollDuration;
+
+        // Apply roll velocity based on facing direction
+        if (entity.facing === "left") {
+            entity.vx = -this.rollSpeed;
+        } else {
+            entity.vx = this.rollSpeed;
+        }
+
+        // Keep grounded during roll
+        entity.grounded = true;
+        entity.vy = 0;
+
+        // Set roll animation (non-looping)
+        // Will use fallback NoSpriteBudda.png until roll animation is added to zero.json
+        if (entity.animator) {
+            entity.animator.setAnimation("roll", entity.facing, false);
+        }
     }
+
     do(dt) {
-        // Stub for roll logic
+        const entity = this.myEntity;
+
+        // Countdown timer
+        this.timeRemaining -= dt;
+
+        // Maintain roll velocity
+        if (entity.facing === "left") {
+            entity.vx = -this.rollSpeed;
+        } else {
+            entity.vx = this.rollSpeed;
+        }
+
+        // End roll when time is up
+        if (this.timeRemaining <= 0) {
+            entity.changeState("idle");
+        }
     }
+
     exit() {
-        // Stub for exiting roll
+        const entity = this.myEntity;
+
+        // Remove invulnerability
+        entity.invulnerable = false;
+
+        // Stop horizontal movement
+        entity.vx = 0;
     }
 }
 

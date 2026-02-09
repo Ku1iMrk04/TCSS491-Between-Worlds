@@ -17,17 +17,24 @@ class GameScene extends Scene {
         // reset entities for a clean run
         this.game.entities = [];
 
-        // spawn player + enemies (scaled for 1920x1080 canvas)
-        this.player = new Player(this.game, 300, 750);
+        const tileMap = this.game.tileMap;
+
+        // Spawn player from map data
+        const playerSpawn = tileMap.getPlayerSpawn();
+        if (playerSpawn) {
+            this.player = new Player(this.game, playerSpawn.x, playerSpawn.y);
+        } else {
+            // Fallback if no spawn point defined
+            this.player = new Player(this.game, 300, 750);
+        }
         this.game.addEntity(this.player);
 
-        const enemy1 = new Enemy(this.game, 900, 750);
-        const enemy2 = new Enemy(this.game, 1500, 600);
-        const enemy3 = new Enemy(this.game, 1200, 840);
-
-        this.game.addEntity(enemy1);
-        this.game.addEntity(enemy2);
-        this.game.addEntity(enemy3);
+        // Spawn enemies from map data
+        const enemySpawns = tileMap.getEnemySpawns();
+        for (const spawn of enemySpawns) {
+            const enemy = new Enemy(this.game, spawn.x, spawn.y);
+            this.game.addEntity(enemy);
+        }
     }
 
     update() {
@@ -44,12 +51,30 @@ class GameScene extends Scene {
         ctx.mozImageSmoothingEnabled = false;
         ctx.msImageSmoothingEnabled = false;
 
-        // Draw level background first
-        if (this.levelBgImage) {
-            ctx.drawImage(this.levelBgImage, 0, 0, ctx.canvas.width, ctx.canvas.height);
+        // Scale factor: map is 960x640, canvas is 1920x1080
+        const scale = 2;
+
+        ctx.save();
+        ctx.scale(scale, scale);
+
+        // Draw tilemap background layer first
+        if (this.game.tileMap) {
+            this.game.tileMap.drawBackground(ctx);
         }
 
-        // Then draw HUD on top
+        // Draw tilemap foreground layer (platforms/collision tiles)
+        if (this.game.tileMap) {
+            this.game.tileMap.drawForeground(ctx);
+        }
+
+        // Draw tilemap collision debug (red tiles show solid areas)
+        if (this.game.tileMap && this.game.options.debugging) {
+            this.game.tileMap.drawDebug(ctx);
+        }
+
+        ctx.restore();
+
+        // Then draw HUD on top (not scaled)
         this.drawLevelLabel(ctx);
         this.drawControlsHub(ctx);
         this.drawPlayerHealthBar(ctx);
@@ -59,7 +84,7 @@ class GameScene extends Scene {
         const text = "Level 1";
 
         ctx.save();
-        ctx.fillStyle = "black";
+        ctx.fillStyle = "white";
         ctx.font = "66px Orbitron, Arial, sans-serif";
         ctx.textBaseline = "top";
 
@@ -72,8 +97,9 @@ class GameScene extends Scene {
     }
 
     drawControlsHub(ctx) {
+        const lineHeight = 40
         const boxW = 520;
-        const boxH = 144;
+        const boxH = 200;
         const x = ctx.canvas.width - boxW - 32;
         const y = 32;
         const pad = 20;
@@ -95,8 +121,9 @@ class GameScene extends Scene {
         ctx.font = "28px Arial";
         ctx.textBaseline = "top";
         ctx.fillText("Controls:", x + pad, y + pad);
-        ctx.fillText("Move: WASD / Arrow Keys", x + pad, y + pad + 40);
-        ctx.fillText("Attack: Space", x + pad, y + pad + 80);
+        ctx.fillText("Move: WASD / Arrow Keys", x + pad, y + pad + lineHeight);
+        ctx.fillText("Attack: Right Click", x + pad, y + pad + (lineHeight * 2));
+        ctx.fillText("Roll: Left Shift",x + pad, y + pad + (lineHeight * 3));
 
         ctx.restore();
     }
