@@ -97,8 +97,9 @@ class GameScene extends Scene {
     }
 
     drawControlsHub(ctx) {
+        const lineHeight = 40
         const boxW = 520;
-        const boxH = 144;
+        const boxH = 200;
         const x = ctx.canvas.width - boxW - 32;
         const y = 32;
         const pad = 20;
@@ -120,8 +121,9 @@ class GameScene extends Scene {
         ctx.font = "28px Arial";
         ctx.textBaseline = "top";
         ctx.fillText("Controls:", x + pad, y + pad);
-        ctx.fillText("Move: WASD / Arrow Keys", x + pad, y + pad + 40);
-        ctx.fillText("Attack: Space", x + pad, y + pad + 80);
+        ctx.fillText("Move: WASD / Arrow Keys", x + pad, y + pad + lineHeight);
+        ctx.fillText("Attack: Right Click", x + pad, y + pad + (lineHeight * 2));
+        ctx.fillText("Roll: Left Shift",x + pad, y + pad + (lineHeight * 3));
 
         ctx.restore();
     }
