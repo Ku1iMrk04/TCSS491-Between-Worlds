@@ -5,6 +5,11 @@ class Idle extends State {
     enter() {
         // Stop horizontal movement
         this.myEntity.vx = 0;
+
+        // Set idle animation
+        if (this.myEntity.animator) {
+            this.myEntity.animator.setAnimation("idle", this.myEntity.facing, true);
+        }
     }
 
     do(dt) {

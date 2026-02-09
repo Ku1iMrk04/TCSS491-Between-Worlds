@@ -35,6 +35,9 @@ class Attack extends State {
 
         this.attackTimer += dt;
 
+        // Store previous facing to detect direction changes
+        const previousFacing = entity.facing;
+
         // Allow movement while attacking
         if (game.left) {
             entity.vx = -entity.speed;
@@ -44,6 +47,11 @@ class Attack extends State {
             entity.facing = "right";
         } else {
             entity.vx = 0;
+        }
+
+        // Update animator direction if facing changed
+        if (entity.animator && previousFacing !== entity.facing) {
+            entity.animator.setDirection(entity.facing);
         }
 
         // End attack after duration

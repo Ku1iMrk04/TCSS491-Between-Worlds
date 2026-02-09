@@ -8,11 +8,20 @@ class Jump extends State {
         // Apply initial jump velocity (negative = upward)
         entity.vy = -550;  // Jump strength
         entity.grounded = false;
+
+        // Set jump animation (non-looping)
+        // Will use fallback NoSpriteBudda.png until jump animation is added to zero.json
+        if (entity.animator) {
+            entity.animator.setAnimation("jump", entity.facing, false);
+        }
     }
 
     do(dt) {
         const entity = this.myEntity;
         const game = entity.game;
+
+        // Store previous facing to detect direction changes
+        const previousFacing = entity.facing;
 
         // Air control - horizontal movement while jumping
         if (game.left) {
@@ -24,6 +33,11 @@ class Jump extends State {
         } else {
             // Reduce horizontal velocity in air (air friction)
             entity.vx *= 0.9;
+        }
+
+        // Update animator direction if facing changed
+        if (entity.animator && previousFacing !== entity.facing) {
+            entity.animator.setDirection(entity.facing);
         }
 
         // If grounded, transition back to idle or run

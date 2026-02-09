@@ -21,6 +21,12 @@
       "frameCount": 7,
       "frameWidth": 49,
       "frameHeight": 39
+    },
+    "attack_slash": {
+      "yStart": 522,
+      "frameCount": 7,
+      "frameWidth": 88,
+      "frameHeight": 28
     }
   }
 }

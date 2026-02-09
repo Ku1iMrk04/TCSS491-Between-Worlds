@@ -76,6 +76,8 @@ class Actor {
         if (this.currentState && this.currentState.exit) {
             this.currentState.exit();
         }
+
+
         this.currentState = this.states[name] || null;
         if (this.currentState && this.currentState.enter) {
             this.currentState.enter();
@@ -100,8 +102,12 @@ class Actor {
         this.x += this.vx * dt;
         this.y += this.vy * dt;
 
-        // Let state handle behavior
+        // Update animator
+        if (this.animator) {
+            this.animator.update(dt);
+        }
 
+        // Let state handle behavior
         if (this.currentState && this.currentState.do) {
             this.currentState.do(dt);
         }

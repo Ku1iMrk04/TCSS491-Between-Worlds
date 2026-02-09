@@ -27,6 +27,7 @@ class Player extends Actor {
         this.addState("roll", new Roll());
         this.addState("attack", new Attack());
         this.changeState("idle");
+
     }
 
     onCollision(other) {

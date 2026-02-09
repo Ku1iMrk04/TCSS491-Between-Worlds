@@ -17,6 +17,8 @@ ASSET_MANAGER.queueSprite("assets/enemy_scientist.png");
 ASSET_MANAGER.queueDownload("assets/menu_background.png");
 ASSET_MANAGER.queueDownload("assets/level_background.png");
 
+// Fallback image for missing animations
+ASSET_MANAGER.queueDownload("assets/NoSpriteBudda.png");
 // Tileset images for the prison map
 ASSET_MANAGER.queueDownload("assets/prison_background.png");
 ASSET_MANAGER.queueDownload("assets/prison_foreground.png");

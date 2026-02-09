@@ -13,11 +13,18 @@ class SpriteAtlas {
 
 // Returns the size of an animation
     getAnimationSize(animationName) {
+        if (!this.metadata || !this.metadata.animations || !this.metadata.animations[animationName]) {
+            console.warn(`Animation "${animationName}" not found in metadata`);
+            return { w: 32, h: 32 }; // fallback size
+        }
         return {
             w: this.metadata.animations[animationName].frameWidth,
             h: this.metadata.animations[animationName].frameHeight
         }
+    }
 
+    hasAnimation(animationName) {
+        return this.metadata && this.metadata.animations && this.metadata.animations[animationName] !== undefined;
     }
     getFrameGap(){
         return (this.marginWidth * 2) + this.xLineWidth;
