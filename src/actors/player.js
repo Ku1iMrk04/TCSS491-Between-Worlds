@@ -99,10 +99,10 @@ class Player extends Actor {
         const leftFootX = this.x + 10;
         const rightFootX = this.x + this.width - 10;
 
-        // Check left wall with step-up
-        if (tileMap.isSolidAtWorld(this.x, headY) ||
+        // Check left wall with step-up (only while moving left)
+        if (this.vx < 0 && (tileMap.isSolidAtWorld(this.x, headY) ||
             tileMap.isSolidAtWorld(this.x, midY) ||
-            tileMap.isSolidAtWorld(this.x, feetCheckY)) {
+            tileMap.isSolidAtWorld(this.x, feetCheckY))) {
 
             // Try to step up (check if there's clearance above)
             let canStepUp = false;
@@ -129,11 +129,11 @@ class Player extends Actor {
             }
         }
 
-        // Check right wall with step-up
+        // Check right wall with step-up (only while moving right)
         const rightX = this.x + this.width;
-        if (tileMap.isSolidAtWorld(rightX, headY) ||
+        if (this.vx > 0 && (tileMap.isSolidAtWorld(rightX, headY) ||
             tileMap.isSolidAtWorld(rightX, midY) ||
-            tileMap.isSolidAtWorld(rightX, feetCheckY)) {
+            tileMap.isSolidAtWorld(rightX, feetCheckY))) {
 
             // Try to step up (check if there's clearance above)
             let canStepUp = false;
