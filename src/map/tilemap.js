@@ -496,7 +496,7 @@ class TileMap {
     getEnemySpawns() {
         return [
             { x: 400, y: 256, type: "scientist" },
-            { x: 600, y: 256, type: "scientist" },
+            { x: 600, y: 128, type: "scientist" },
             { x: 800, y: 256, type: "scientist" }
         ];
     }
