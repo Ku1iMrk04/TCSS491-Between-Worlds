@@ -18,7 +18,7 @@ class Enemy extends Actor {
 
         this.state = "idle";  // Possible states: idle, patrol, chase, attack
         this.aggroRange = 420;
-        this.attackRange = 50;
+        this.attackRange = 40;
         this.verticalAwareness = 80; // Detect/chase targets on the same floor with a bit more tolerance
         this.stairVerticalAwareness = 320; // Keep chase active through taller stair height differences
         this.secondFloorY = 240; // Map-specific upper floor cutoff (smaller Y = higher on map)
@@ -33,6 +33,9 @@ class Enemy extends Actor {
         this.facing = "left";
         this.animator = new Animator("enemy_scientist", this.game.assetManager);
         this.animator.setScale(this.scale);
+        this.idleAnimation = "idle";
+        this.chaseAnimation = "walk";
+        this.attackAnimation = "idle";
         this.player = null;
         this.wasFalling = false;
     }
@@ -69,6 +72,10 @@ class Enemy extends Actor {
         return !!(tileMap.getSlopeAt(leftTileX, leftTileY) || tileMap.getSlopeAt(rightTileX, rightTileY));
     }
 
+    canEngagePlayer(player, context) {
+        return context.sameFloor;
+    }
+
     performAttack() {
         this.attackTimer = this.attackCooldown;
 
@@ -77,11 +84,11 @@ class Enemy extends Actor {
             damage: this.damage,
             knockback: 120,
             size: {
-                width: 28 * this.scale,
+                width: 24 * this.scale,
                 height: 24 * this.scale
             },
             offset: {
-                x: 8,
+                x: 4,
                 y: 4
             }
         });
@@ -128,9 +135,18 @@ class Enemy extends Actor {
             return;
         }
 
-        const dx = player.x - this.x;
+        const playerCenterX = player.x + (player.width / 2);
+        const enemyCenterX = this.x + (this.width / 2);
+        const centerDx = playerCenterX - enemyCenterX;
         const dy = player.y - this.y;
-        const horizontalDist = Math.abs(dx);
+        const horizontalDist = Math.abs(centerDx);
+        const horizontalGap = Math.max(
+            0,
+            Math.max(
+                player.x - (this.x + this.width),
+                this.x - (player.x + player.width)
+            )
+        );
         const verticalDist = Math.abs(dy);
         const playerOnSlope = this.isOnSlope(player);
         const enemyOnSlope = this.isOnSlope(this);
@@ -143,34 +159,43 @@ class Enemy extends Actor {
             player.y <= this.secondFloorY && this.y > this.secondFloorY + 40) {
             sameFloor = false;
         }
+        const canEngage = this.canEngagePlayer(player, {
+            sameFloor,
+            playerOnSlope,
+            enemyOnSlope,
+            horizontalDist,
+            horizontalGap,
+            verticalDist,
+            centerDx
+        });
 
         var faced = this.facing;
-        this.facing = dx < 0 ? "left" : "right";
+        this.facing = centerDx < 0 ? "left" : "right";
         if (this.facing !== faced) {
             this.animator.setDirection(this.facing);
         }
 
-        if (!sameFloor || horizontalDist > this.aggroRange) {
+        if (!canEngage || horizontalDist > this.aggroRange) {
             if (this.state !== "idle") {
                 this.state = "idle";
-                this.animator.setAnimation("idle", this.facing, true);
+                this.animator.setAnimation(this.idleAnimation, this.facing, true);
             }
             this.vx = 0;
         }
-        else if (horizontalDist > this.attackRange) {
+        else if (horizontalGap > this.attackRange) {
             if (this.state !== "chase") {
                 this.state = "chase";
-                this.animator.setAnimation("walk", this.facing, true);
+                this.animator.setAnimation(this.chaseAnimation, this.facing, true);
             }
             let dir = 0;
-            if (dx > this.horizontalDeadzone) dir = 1;
-            else if (dx < -this.horizontalDeadzone) dir = -1;
+            if (centerDx > this.horizontalDeadzone) dir = 1;
+            else if (centerDx < -this.horizontalDeadzone) dir = -1;
             this.vx = dir * this.speed;
         }
         else {
             if (this.state !== "attack") {
                 this.state = "attack";
-                this.animator.setAnimation("idle", this.facing, true);
+                this.animator.setAnimation(this.attackAnimation, this.facing, true);
             }
             this.vx = 0;
             if (this.attackTimer <= 0) {
@@ -320,13 +345,6 @@ class Enemy extends Actor {
 
     draw(ctx, game) {
         this.animator.draw(ctx, this.x, this.y);
-        // ctx.save();
-        // ctx.fillStyle = "#e74c3c";
-        // ctx.fillRect(this.x, this.y, this.width, this.height);
-        // ctx.font = "9px sans-serif";
-        // ctx.fillStyle = "#fff";
-        // ctx.fillText(this.name, this.x + 2, this.y + 15);
-        // ctx.restore();
     }
 }
 

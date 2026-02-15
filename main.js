@@ -12,6 +12,8 @@ const ASSET_MANAGER = new AssetManager();
 // Sprite sheets with animations (will load .json metadata)
 ASSET_MANAGER.queueSprite("assets/zero.png");
 ASSET_MANAGER.queueSprite("assets/enemy_scientist.png");
+ASSET_MANAGER.queueSprite("assets/grunt_idle.png");
+ASSET_MANAGER.queueSprite("assets/gangsteridle_3.png");
 
 // Background images (no metadata needed)
 ASSET_MANAGER.queueDownload("assets/menu_background.png");

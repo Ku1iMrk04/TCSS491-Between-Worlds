@@ -12,11 +12,13 @@ export function setupCollisions(collisionManager) {
     collisionManager.addLayerRule("player", "enemy");
     collisionManager.addLayerRule("player_attack", "enemy");
     collisionManager.addLayerRule("enemy_attack", "player");
+    collisionManager.addLayerRule("enemy_projectile", "player");
 
     // Player touching enemy = player takes damage
     collisionManager.onCollision("player", "enemy", (player, enemy, overlap) => {
-        if (player.takeDamage) {
-            player.takeDamage(enemy.damage || 10);
+        const touchDamage = enemy.contactDamage ?? enemy.damage ?? 10;
+        if (touchDamage > 0 && player.takeDamage) {
+            player.takeDamage(touchDamage);
         }
     });
 
@@ -56,4 +58,17 @@ export function setupCollisions(collisionManager) {
         //hitbox.removeFromWorld = true;
     }
 });
+
+    // Enemy projectile hitting player
+    collisionManager.onCollision("enemy_projectile", "player", (projectile, player, overlap) => {
+        if (projectile.removeFromWorld) return;
+        if (projectile.hasHit && projectile.hasHit(player)) return;
+        if (projectile.markHit) projectile.markHit(player);
+
+        if (player.takeDamage) {
+            player.takeDamage(projectile.damage ?? 5);
+        }
+
+        projectile.removeFromWorld = true;
+    });
 }
