@@ -18,15 +18,22 @@ class Attack extends State {
         }
 
         // Spawn hitbox in front of the player (centered vertically, extends above/below)
-        this.hitbox = new AttackHitbox(this.myEntity, {
-            offset: { x: 32, y: -20},  // In front of player, offset up to center
-            size: { width: 82 * 3, height: 20 * 3 },  // Taller to hit enemies above/below
-            damage: 25,
-            knockback: 150,
-            layer: "player_attack"
-        });
+        try {
+            this.hitbox = new AttackHitbox(this.myEntity, {
+                offset: { x: 32, y: -20},  // In front of player, offset up to center
+                size: { width: 82 * 3, height: 20 * 3 },  // Taller to hit enemies above/below
+                damage: 25,
+                knockback: 150,
+                layer: "player_attack"
+            });
 
-        this.myEntity.game.addEntity(this.hitbox);
+            if (this.myEntity.game && this.myEntity.game.addEntity) {
+                this.myEntity.game.addEntity(this.hitbox);
+            }
+        } catch (err) {
+            console.error("Error creating attack hitbox:", err);
+            this.hitbox = null;
+        }
     }
 
     do(dt) {
@@ -67,14 +74,22 @@ class Attack extends State {
     exit() {
         // Remove the hitbox when attack ends
         if (this.hitbox) {
-            this.hitbox.removeFromWorld = true;
+            try {
+                this.hitbox.removeFromWorld = true;
+            } catch (err) {
+                console.error("Error removing attack hitbox:", err);
+            }
             this.hitbox = null;
         }
 
         // Return to idle animation
-        if (this.myEntity.animator) {
-            this.myEntity.animator.setAnimation("idle", this.myEntity.facing, true);
-            this.myEntity.currentAnimState = "idle";
+        if (this.myEntity && this.myEntity.animator) {
+            try {
+                this.myEntity.animator.setAnimation("idle", this.myEntity.facing, true);
+                this.myEntity.currentAnimState = "idle";
+            } catch (err) {
+                console.error("Error resetting animation after attack:", err);
+            }
         }
     }
 }
