@@ -55,6 +55,8 @@ class Player extends Actor {
         const dt = this.game.clockTick || 0;
         if (this.dashStrikeCooldownTimer > 0) {
             this.dashStrikeCooldownTimer -= dt;
+        }
+
         // Track if player was grounded last frame
         const wasGrounded = this.grounded;
 
@@ -62,6 +64,7 @@ class Player extends Actor {
         if (this.game.space && this.grounded && this.currentState !== this.states["attack"] && this.currentState !== this.states["roll"]) {
             this.changeState("jump");
         }
+
         this.dashStrikeTarget = this._findClosestEnemyInRange();
 
         const isAiming = this.currentState === this.states["dashstrikeaim"];
