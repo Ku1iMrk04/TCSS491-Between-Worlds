@@ -33,6 +33,14 @@ export class GameEngine {
         this.sceneManager = null;
         this.menuBgImage = null;
 
+        // Slow-mo support
+        this.timeScale = 1;
+        this.rawClockTick = 0;
+
+        // Right mouse button tracking
+        this.rightMouseDown = false;
+        this.rightMouseReleased = false;
+
         // Options and the Details
         this.options = options || {
             debugging: false,
@@ -66,11 +74,19 @@ export class GameEngine {
 
         this.ctx.canvas.addEventListener("mousedown", e => {
             const pos = getXandY(e);
-            this.click = pos;
+            if (e.button === 0) {
+                if (this.options.debugging) {
+                    console.log("MOUSEDOWN", pos);
+                }
+                this.click = pos;
 
-            // scene click forwarding
-            if (this.sceneManager) {
-                this.sceneManager.onClick(pos.x, pos.y);
+                // scene click forwarding
+                if (this.sceneManager) {
+                    this.sceneManager.onClick(pos.x, pos.y);
+                }
+            } else if (e.button === 2) {
+                this.rightMouseDown = true;
+                this.rightclick = pos;
             }
         });
 
@@ -79,9 +95,15 @@ export class GameEngine {
             this.wheel = e;
         });
 
+        this.ctx.canvas.addEventListener("mouseup", e => {
+            if (e.button === 2) {
+                this.rightMouseDown = false;
+                this.rightMouseReleased = true;
+            }
+        });
+
         this.ctx.canvas.addEventListener("contextmenu", e => {
             e.preventDefault(); // Prevent Context Menu
-            this.rightclick = getXandY(e);
         });
 
         window.addEventListener("keydown", event => {
@@ -215,7 +237,8 @@ export class GameEngine {
     };
 
     loop() {
-        this.clockTick = this.timer.tick();
+        this.rawClockTick = this.timer.tick();
+        this.clockTick = this.rawClockTick * this.timeScale;
         this.update();
         this.draw();
     };
