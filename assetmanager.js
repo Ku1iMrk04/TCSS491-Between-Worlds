@@ -48,7 +48,6 @@ export class AssetManager {
                 const img = new Image();
 
                 const path = this.downloadQueue[i];
-                console.log(path);
 
                 img.addEventListener("load", () => {
                     console.log("Loaded " + img.src);
@@ -89,7 +88,6 @@ export class AssetManager {
      */
     getSpriteAtlas(imagePath) {
         const metadata = this.getMetadata(imagePath);
-        console.log("getSpriteAtlas called with:", imagePath, "| metadata:", metadata, "| cache keys:", Object.keys(this.cache));
         return new SpriteAtlas(
             this.getAsset(imagePath),
             metadata

@@ -61,17 +61,11 @@ export class GameEngine {
         });
         
         this.ctx.canvas.addEventListener("mousemove", e => {
-            if (this.options.debugging) {
-                console.log("MOUSE_MOVE", getXandY(e));
-            }
             this.mouse = getXandY(e);
         });
 
         this.ctx.canvas.addEventListener("mousedown", e => {
             const pos = getXandY(e);
-            if (this.options.debugging) {
-                console.log("MOUSEDOWN", getXandY(e));
-            }
             this.click = pos;
 
             // scene click forwarding
@@ -81,17 +75,11 @@ export class GameEngine {
         });
 
         this.ctx.canvas.addEventListener("wheel", e => {
-            if (this.options.debugging) {
-                console.log("WHEEL", getXandY(e), e.wheelDelta);
-            }
             e.preventDefault(); // Prevent Scrolling
             this.wheel = e;
         });
 
         this.ctx.canvas.addEventListener("contextmenu", e => {
-            if (this.options.debugging) {
-                console.log("RIGHT_CLICK", getXandY(e));
-            }
             e.preventDefault(); // Prevent Context Menu
             this.rightclick = getXandY(e);
         });

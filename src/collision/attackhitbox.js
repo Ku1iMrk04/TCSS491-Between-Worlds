@@ -94,14 +94,23 @@ class AttackHitbox {
     draw(ctx, game) {
         // Draw the attack slash animation
         if (this.animator) {
-            // Position slash to match hitbox position
-            let slashX = this.x;
-            const slashY = this.owner.y; // Keep vertically aligned with player
+            let slashX, slashY;
 
-            // When facing left, shift 96 pixels to the right
-            // When facing right, position normally
+            // Get the attack slash sprite dimensions (88x28 at scale)
+            const slashWidth = 88 * this.owner.scale;
+
+            // Align attack sprite's top corner with player's top corner
+            slashY = this.owner.y; // Top aligned with player
+
             if (this.owner.facing === "left") {
-                slashX += 64;  // Add to move right
+                // Attack sprite's top-RIGHT corner aligns with player's top-RIGHT corner
+                // Player's right edge is at: owner.x + owner.width
+                // Attack sprite's right edge should be at same position
+                // So left edge is at: (owner.x + owner.width) - slashWidth
+                slashX = this.owner.x + this.owner.width - slashWidth;
+            } else {
+                // Attack sprite's top-LEFT corner aligns with player's top-LEFT corner
+                slashX = this.owner.x;
             }
 
             this.animator.draw(ctx, slashX, slashY);

@@ -67,8 +67,8 @@ class GameScene extends Scene {
             this.game.tileMap.drawForeground(ctx);
         }
 
-        // Draw tilemap collision debug (red tiles show solid areas)
-        if (this.game.tileMap && this.game.options.debugging) {
+        // Draw tilemap collision debug (red tiles show solid areas, green shows slopes)
+        if (this.game.tileMap) {
             this.game.tileMap.drawDebug(ctx);
         }
 

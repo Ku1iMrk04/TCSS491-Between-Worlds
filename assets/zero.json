@@ -13,11 +13,11 @@
     "run": {
       "yStart": 74,
       "frameCount": 10,
-      "frameWidth": 41,
+      "frameWidth": 40,
       "frameHeight": 32
     },
     "attack": {
-      "yStart": 483,
+      "yStart": 482,
       "frameCount": 7,
       "frameWidth": 49,
       "frameHeight": 39
@@ -25,7 +25,7 @@
     "attack_slash": {
       "yStart": 522,
       "frameCount": 7,
-      "frameWidth": 88,
+      "frameWidth": 98,
       "frameHeight": 28
     }
   }
