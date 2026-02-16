@@ -1,0 +1,14 @@
+{ "columns":28,
+ "image":"..\/..\/prison_background.png",
+ "imageheight":417,
+ "imagewidth":913,
+ "margin":0,
+ "name":"PRISON",
+ "spacing":0,
+ "tilecount":364,
+ "tiledversion":"1.11.2",
+ "tileheight":32,
+ "tilewidth":32,
+ "type":"tileset",
+ "version":"1.10"
+}

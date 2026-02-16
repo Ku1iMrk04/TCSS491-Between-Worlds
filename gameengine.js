@@ -69,9 +69,6 @@ export class GameEngine {
         });
         
         this.ctx.canvas.addEventListener("mousemove", e => {
-            if (this.options.debugging) {
-                console.log("MOUSE_MOVE", getXandY(e));
-            }
             this.mouse = getXandY(e);
         });
 
@@ -94,9 +91,6 @@ export class GameEngine {
         });
 
         this.ctx.canvas.addEventListener("wheel", e => {
-            if (this.options.debugging) {
-                console.log("WHEEL", getXandY(e), e.wheelDelta);
-            }
             e.preventDefault(); // Prevent Scrolling
             this.wheel = e;
         });

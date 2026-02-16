@@ -127,10 +127,6 @@ class TileMap {
             if (gid >= info.firstgid) {
                 const localId = gid - info.firstgid;
                 const shapes = this.tileCollisions[localId] || null;
-                // Debug: log when we're looking up collision for tiles we defined
-                if (localId === 194 || localId === 200 || localId === 222 || localId === 226 || localId === 250) {
-                    console.log(`getCollisionShapes: gid=${gid}, firstgid=${info.firstgid}, localId=${localId}, hasShapes=${!!shapes}`);
-                }
                 return shapes;
             }
         }
@@ -209,7 +205,85 @@ class TileMap {
         const gid = foreground[tileY][tileX];
         if (gid === 0) return null;
 
-        return this.tileCollisions[gid] || null;
+        return this.getCollisionShapes(gid);
+    }
+
+    /**
+     * Check if a tile has a slope collision
+     * Returns slope info if it's a slope, null otherwise
+     */
+    getSlopeAt(tileX, tileY) {
+        const shapes = this.getTileCollision(tileX, tileY);
+        if (!shapes || shapes.length === 0) return null;
+
+        // Check if the shape looks like a slope (polygon with angled top)
+        for (const shape of shapes) {
+            if (shape.type === 'polygon') {
+                const points = shape.points;
+                if (points.length >= 3) {
+                    // Analyze the polygon to determine if it's a slope
+                    // Check for common slope patterns by finding corner positions
+
+                    const tolerance = 2; // Allow small deviation for corner detection
+                    const hasBottomLeft = points.some(p => Math.abs(p.x) < tolerance && Math.abs(p.y - this.tileHeight) < tolerance);
+                    const hasBottomRight = points.some(p => Math.abs(p.x - this.tileWidth) < tolerance && Math.abs(p.y - this.tileHeight) < tolerance);
+                    const hasTopLeft = points.some(p => Math.abs(p.x) < tolerance && Math.abs(p.y) < tolerance);
+                    const hasTopRight = points.some(p => Math.abs(p.x - this.tileWidth) < tolerance && Math.abs(p.y) < tolerance);
+
+                    const tileWorldX = tileX * this.tileWidth;
+                    const tileWorldY = tileY * this.tileHeight;
+
+                    // Right-ascending slope (/) - bottom-left to top-right
+                    if (hasBottomLeft && hasTopRight) {
+                        return {
+                            type: 'ascending',
+                            x: tileWorldX,
+                            y: tileWorldY,
+                            getYForX: (worldX) => {
+                                const localX = worldX - tileWorldX;
+                                // Clamp to tile bounds
+                                const clampedX = Math.max(0, Math.min(this.tileWidth, localX));
+                                // Linear interpolation from bottom-left to top-right
+                                const t = clampedX / this.tileWidth;
+                                return tileWorldY + this.tileHeight - (t * this.tileHeight);
+                            }
+                        };
+                    }
+
+                    // Left-ascending slope (\) - bottom-right to top-left
+                    if (hasBottomRight && hasTopLeft) {
+                        return {
+                            type: 'descending',
+                            x: tileWorldX,
+                            y: tileWorldY,
+                            getYForX: (worldX) => {
+                                const localX = worldX - tileWorldX;
+                                // Clamp to tile bounds
+                                const clampedX = Math.max(0, Math.min(this.tileWidth, localX));
+                                // Linear interpolation from top-left to bottom-right
+                                const t = clampedX / this.tileWidth;
+                                return tileWorldY + (t * this.tileHeight);
+                            }
+                        };
+                    }
+                }
+            }
+        }
+        return null;
+    }
+
+    /**
+     * Get the Y position on a slope at a given X coordinate
+     * Returns null if not on a slope
+     */
+    getSlopeYAtWorld(worldX, worldY) {
+        const tileX = Math.floor(worldX / this.tileWidth);
+        const tileY = Math.floor(worldY / this.tileHeight);
+
+        const slope = this.getSlopeAt(tileX, tileY);
+        if (!slope) return null;
+
+        return slope.getYForX(worldX);
     }
 
     /**
@@ -417,9 +491,9 @@ class TileMap {
      */
     getEnemySpawns() {
         return [
-            { x: 400, y: 256, type: "scientist" },
-            { x: 600, y: 256, type: "scientist" },
-            { x: 800, y: 256, type: "scientist" }
+            { x: 700, y: 256, type: "grunt" },
+            { x: 840, y: 256, type: "scientist" },
+            { x: 720, y: 128, type: "gangster" }
         ];
     }
 

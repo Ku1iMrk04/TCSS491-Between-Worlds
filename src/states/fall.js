@@ -1,28 +1,13 @@
 
 import State from "./state.js";
 
-class Jump extends State {
+class Fall extends State {
     enter() {
         const entity = this.myEntity;
 
-        // Apply initial jump velocity (negative = upward)
-        entity.vy = -550;  // Jump strength
-        entity.grounded = false;
-
-        // Set jump animation (non-looping)
-        // Will use fallback or idle animation until jump animation is added to zero.json
+        // Set fall animation
         if (entity.animator) {
-            try {
-                // Try to set jump animation, but use idle if it doesn't exist
-                if (entity.animator.spriteAtlas && entity.animator.spriteAtlas.hasAnimation("jump")) {
-                    entity.animator.setAnimation("jump", entity.facing, false);
-                } else {
-                    // Use idle animation as fallback for jumping
-                    entity.animator.setAnimation("idle", entity.facing, true);
-                }
-            } catch (err) {
-                console.error("Error setting jump animation:", err);
-            }
+            entity.animator.setAnimation("fall", entity.facing, true);
         }
     }
 
@@ -33,7 +18,7 @@ class Jump extends State {
         // Store previous facing to detect direction changes
         const previousFacing = entity.facing;
 
-        // Air control - horizontal movement while jumping
+        // Air control - horizontal movement while falling
         if (game.left) {
             entity.vx = -entity.speed;
             entity.facing = "left";
@@ -62,10 +47,10 @@ class Jump extends State {
 
     exit() {
         // Reset vertical velocity when landing
-        if (this.myEntity && this.myEntity.grounded) {
+        if (this.myEntity.grounded) {
             this.myEntity.vy = 0;
         }
     }
 }
 
-export default Jump;
+export default Fall;

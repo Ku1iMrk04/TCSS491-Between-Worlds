@@ -1,6 +1,9 @@
 import Scene from "./scene.js";
 import Player from "../actors/player.js";
 import Enemy from "../actors/enemy.js";
+import GruntEnemy from "../actors/gruntenemy.js";
+import ScientistEnemy from "../actors/scientistenemy.js";
+import GangsterEnemy from "../actors/gangsterenemy.js";
 import DeathScene from "./deathscene.js";
 import MenuScene from "./menuscene.js";
 
@@ -33,7 +36,16 @@ class GameScene extends Scene {
         // Spawn enemies from map data
         const enemySpawns = tileMap.getEnemySpawns();
         for (const spawn of enemySpawns) {
-            const enemy = new Enemy(this.game, spawn.x, spawn.y);
+            let enemy;
+            if (spawn.type === "grunt") {
+                enemy = new GruntEnemy(this.game, spawn.x, spawn.y);
+            } else if (spawn.type === "gangster") {
+                enemy = new GangsterEnemy(this.game, spawn.x, spawn.y);
+            } else if (spawn.type === "scientist") {
+                enemy = new ScientistEnemy(this.game, spawn.x, spawn.y);
+            } else {
+                enemy = new Enemy(this.game, spawn.x, spawn.y);
+            }
             this.game.addEntity(enemy);
         }
     }
@@ -75,8 +87,8 @@ class GameScene extends Scene {
             this.game.tileMap.drawForeground(ctx);
         }
 
-        // Draw tilemap collision debug (red tiles show solid areas)
-        if (this.game.tileMap && this.game.options.debugging) {
+        // Draw tilemap collision debug (red tiles show solid areas, green shows slopes)
+        if (this.game.tileMap) {
             this.game.tileMap.drawDebug(ctx);
         }
 
