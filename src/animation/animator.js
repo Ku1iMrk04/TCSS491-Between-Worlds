@@ -10,13 +10,17 @@ class Animator {
         this.scale = 1;
         this.fallbackImage = this.assetManager.getAsset("assets/NoSpriteBudda.png"); // Fallback image
         this.animationMissing = false; // Track if current animation is missing
+        this.verticalAdjustment = 0; // Custom vertical offset (can be set per-entity)
 
         // Safety check before calling getAnimationSize
         if (this.spriteAtlas && this.spriteAtlas.metadata && this.spriteAtlas.metadata.animations) {
             this.currAnimationTransform = this.spriteAtlas.getAnimationSize("idle");
+            // Calculate the maximum height across all animations for bottom-alignment
+            this.maxAnimationHeight = this.calculateMaxAnimationHeight();
         } else {
             console.warn("SpriteAtlas or metadata not loaded for:", name);
             this.currAnimationTransform = { w: 32, h: 32 }; // fallback
+            this.maxAnimationHeight = 32;
         }
 
         this.currentFrame = 0;
@@ -27,13 +31,28 @@ class Animator {
         this._frameTimer = 0;
         this.frameGap = this.spriteAtlas.getFrameGap();
         this.initialFrameGap = this.frameGap - this.spriteAtlas.marginWidth;
-        console.log("Animator created:", {
-            name: this.name,
-            hasAtlas: !!this.spriteAtlas,
-            hasMetadata: !!(this.spriteAtlas && this.spriteAtlas.metadata),
-            hasSpriteSheet: !!(this.spriteAtlas && this.spriteAtlas.spriteSheet),
-            transform: this.currAnimationTransform
-        });
+    }
+
+    /**
+     * Calculate the maximum frame height across all animations
+     * Used for bottom-aligning sprites with different heights
+     */
+    calculateMaxAnimationHeight() {
+        if (!this.spriteAtlas || !this.spriteAtlas.metadata || !this.spriteAtlas.metadata.animations) {
+            return 32; // fallback
+        }
+
+        let maxHeight = 0;
+        const animations = this.spriteAtlas.metadata.animations;
+
+        for (const animName in animations) {
+            const anim = animations[animName];
+            if (anim.frameHeight > maxHeight) {
+                maxHeight = anim.frameHeight;
+            }
+        }
+
+        return maxHeight;
     }
 
     setAnimation(name,  direction = this.direction, looping = this.isLooping) {
@@ -47,7 +66,6 @@ class Animator {
             this._frameTimer = 0;
             this.animationMissing = false;
         } else {
-            console.warn(`Animation "${name}" does not exist, using fallback image`);
             this.animationMissing = true;
             this.currAnimationName = name; // Still track what was requested
         }
@@ -72,6 +90,10 @@ class Animator {
     };
     setScale(scale) {
         this.scale = scale;
+    };
+
+    setVerticalAdjustment(offset) {
+        this.verticalAdjustment = offset;
     };
 
     update(dt) {
@@ -111,14 +133,22 @@ class Animator {
         var w = this.currAnimationTransform.w * this.scale;
         var h = this.currAnimationTransform.h * this.scale;
 
+        // Calculate Y offset to bottom-align sprite based on max animation height
+        // This ensures all animations align to the same ground level
+        var maxHeight = this.maxAnimationHeight * this.scale;
+        var yOffset = maxHeight - h;
+
+        // Apply custom vertical adjustment (set per-entity)
+        yOffset += this.verticalAdjustment;
+
         if (!this.spriteAtlas || !this.spriteAtlas.metadata) {
             console.log("Drawing fallback - no atlas/metadata");
             ctx.strokeStyle = this.is_outline ? "#f00" : "#888";
-            ctx.strokeRect(x, y, w, h);
+            ctx.strokeRect(x, y + yOffset, w, h);
             ctx.fillStyle = "#ccc";
-            ctx.fillRect(x, y, w, h);
+            ctx.fillRect(x, y + yOffset, w, h);
             ctx.fillStyle = "#000";
-            ctx.fillText("anim", x + 2, y + 16);
+            ctx.fillText("anim", x + 2, y + yOffset + 16);
             ctx.restore();
             return;
         }
@@ -128,19 +158,19 @@ class Animator {
         // If animation is missing, draw NoSpriteBudda.png fallback
         if (!anim || this.animationMissing) {
             if (this.fallbackImage) {
-                ctx.drawImage(this.fallbackImage, x, y, w, h);
+                ctx.drawImage(this.fallbackImage, x, y + yOffset, w, h);
                 // Draw text showing which animation was requested
                 ctx.fillStyle = "#ff0";
                 ctx.font = "12px monospace";
-                ctx.fillText(`Missing: ${this.currAnimationName}`, x, y - 5);
+                ctx.fillText(`Missing: ${this.currAnimationName}`, x, y + yOffset - 5);
             } else {
                 // Ultimate fallback if NoSpriteBudda.png isn't loaded
                 ctx.strokeStyle = "#f00";
-                ctx.strokeRect(x, y, w, h);
+                ctx.strokeRect(x, y + yOffset, w, h);
                 ctx.fillStyle = "#fcc";
-                ctx.fillRect(x, y, w, h);
+                ctx.fillRect(x, y + yOffset, w, h);
                 ctx.fillStyle = "#f00";
-                ctx.fillText(`Missing: ${this.currAnimationName}`, x + 2, y + 16);
+                ctx.fillText(`Missing: ${this.currAnimationName}`, x + 2, y + yOffset + 16);
             }
             ctx.restore();
             return;
@@ -154,7 +184,7 @@ class Animator {
             var sourceX = this.currentFrame * (anim.frameWidth + this.frameGap) + this.initialFrameGap;
 
             var sourceY = anim.yStart + 2;
-            console.log("Frame changed to:", this.currentFrame, "| sourceX:", sourceX, "sourceY:", anim.yStart, "| animation:", this.currAnimationName);
+            // console.log("Frame changed to:", this.currentFrame, "| sourceX:", sourceX, "sourceY:", anim.yStart, "| animation:", this.currAnimationName);
 
             // Handle direction flipping if needed
             if (this.direction === "left") {
@@ -162,30 +192,30 @@ class Animator {
                 ctx.drawImage(
                     this.spriteAtlas.spriteSheet,
                     sourceX , sourceY, anim.frameWidth, anim.frameHeight,
-                    -x - w, y, w, h
+                    -x - w, y + yOffset, w, h
                 );
             } else {
                 ctx.drawImage(
                     this.spriteAtlas.spriteSheet,
                     sourceX , sourceY,
                     anim.frameWidth, anim.frameHeight,
-                    x, y, w , h
+                    x, y + yOffset, w , h
                 );
             }
 
             // Draw outline if enabled
             if (this.is_outline) {
                 ctx.strokeStyle = "#0f0";
-                ctx.strokeRect(x, y, w, h);
+                ctx.strokeRect(x, y + yOffset, w, h);
             }
         } else {
             // Fallback: draw placeholder if metadata exists but no sprite image
             ctx.strokeStyle = this.is_outline ? "#0f0" : "#888";
-            ctx.strokeRect(x, y, w, h);
+            ctx.strokeRect(x, y + yOffset, w, h);
             ctx.fillStyle = "#99f";
-            ctx.fillRect(x, y, w, h);
+            ctx.fillRect(x, y + yOffset, w, h);
             ctx.fillStyle = "#fff";
-            ctx.fillText(this.currAnimationName, x + 2, y + 16);
+            ctx.fillText(this.currAnimationName, x + 2, y + yOffset + 16);
         }
 
         ctx.restore();

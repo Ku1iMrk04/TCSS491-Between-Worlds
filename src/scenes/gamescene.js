@@ -1,7 +1,11 @@
 import Scene from "./scene.js";
 import Player from "../actors/player.js";
 import Enemy from "../actors/enemy.js";
+import GruntEnemy from "../actors/gruntenemy.js";
+import ScientistEnemy from "../actors/scientistenemy.js";
+import GangsterEnemy from "../actors/gangsterenemy.js";
 import DeathScene from "./deathscene.js";
+import MenuScene from "./menuscene.js";
 
 
 class GameScene extends Scene {
@@ -32,8 +36,24 @@ class GameScene extends Scene {
         // Spawn enemies from map data
         const enemySpawns = tileMap.getEnemySpawns();
         for (const spawn of enemySpawns) {
-            const enemy = new Enemy(this.game, spawn.x, spawn.y);
+            let enemy;
+            if (spawn.type === "grunt") {
+                enemy = new GruntEnemy(this.game, spawn.x, spawn.y);
+            } else if (spawn.type === "gangster") {
+                enemy = new GangsterEnemy(this.game, spawn.x, spawn.y);
+            } else if (spawn.type === "scientist") {
+                enemy = new ScientistEnemy(this.game, spawn.x, spawn.y);
+            } else {
+                enemy = new Enemy(this.game, spawn.x, spawn.y);
+            }
             this.game.addEntity(enemy);
+        }
+    }
+
+    onKeyDown(event) {
+        if (event.code === "KeyR") {
+            const menuBg = this.game.menuBgImage;
+            this.game.sceneManager.changeScene(new MenuScene(this.game, menuBg, this.levelBgImage));
         }
     }
 
@@ -67,8 +87,8 @@ class GameScene extends Scene {
             this.game.tileMap.drawForeground(ctx);
         }
 
-        // Draw tilemap collision debug (red tiles show solid areas)
-        if (this.game.tileMap && this.game.options.debugging) {
+        // Draw tilemap collision debug (red tiles show solid areas, green shows slopes)
+        if (this.game.tileMap) {
             this.game.tileMap.drawDebug(ctx);
         }
 
@@ -78,6 +98,7 @@ class GameScene extends Scene {
         this.drawLevelLabel(ctx);
         this.drawControlsHub(ctx);
         this.drawPlayerHealthBar(ctx);
+        this.drawDashStrikeCooldown(ctx);
     }
 
     drawLevelLabel(ctx) {
@@ -99,7 +120,7 @@ class GameScene extends Scene {
     drawControlsHub(ctx) {
         const lineHeight = 40
         const boxW = 520;
-        const boxH = 200;
+        const boxH = 240;
         const x = ctx.canvas.width - boxW - 32;
         const y = 32;
         const pad = 20;
@@ -122,8 +143,9 @@ class GameScene extends Scene {
         ctx.textBaseline = "top";
         ctx.fillText("Controls:", x + pad, y + pad);
         ctx.fillText("Move: WASD / Arrow Keys", x + pad, y + pad + lineHeight);
-        ctx.fillText("Attack: Right Click", x + pad, y + pad + (lineHeight * 2));
-        ctx.fillText("Roll: Left Shift",x + pad, y + pad + (lineHeight * 3));
+        ctx.fillText("Attack: Left Click", x + pad, y + pad + (lineHeight * 2));
+        ctx.fillText("Roll: Left Shift", x + pad, y + pad + (lineHeight * 3));
+        ctx.fillText("Dash Strike: Right Click", x + pad, y + pad + (lineHeight * 4));
 
         ctx.restore();
     }
@@ -168,6 +190,60 @@ class GameScene extends Scene {
         // border
         ctx.strokeStyle = "#111";
         ctx.strokeRect(x, y, w, h);
+
+        ctx.restore();
+    }
+    drawDashStrikeCooldown(ctx) {
+        if (!this.player) return;
+
+        const cooldown = this.player.dashStrikeCooldown;
+        const timer = Math.max(0, this.player.dashStrikeCooldownTimer);
+        const ready = timer <= 0;
+
+        const x = 48;
+        const y = 210;
+        const size = 60;
+
+        ctx.save();
+
+        // Label
+        ctx.fillStyle = "#ccc";
+        ctx.font = "28px Arial";
+        ctx.textBaseline = "top";
+        ctx.fillText("Dash Strike", x, y);
+
+        // Icon box background
+        const iconX = x;
+        const iconY = y + 36;
+        ctx.fillStyle = ready ? "#2ecc71" : "#444";
+        ctx.fillRect(iconX, iconY, size, size);
+
+        if (!ready) {
+            // Shrinking cooldown overlay
+            const ratio = timer / cooldown;
+            const overlayHeight = Math.floor(size * ratio);
+            ctx.fillStyle = "rgba(0, 0, 0, 0.6)";
+            ctx.fillRect(iconX, iconY, size, overlayHeight);
+
+            // Remaining seconds
+            ctx.fillStyle = "#fff";
+            ctx.font = "24px Arial";
+            ctx.textAlign = "center";
+            ctx.textBaseline = "middle";
+            ctx.fillText(timer.toFixed(1), iconX + size / 2, iconY + size / 2);
+        } else {
+            // "RMB" label when ready
+            ctx.fillStyle = "#fff";
+            ctx.font = "20px Arial";
+            ctx.textAlign = "center";
+            ctx.textBaseline = "middle";
+            ctx.fillText("RMB", iconX + size / 2, iconY + size / 2);
+        }
+
+        // Border
+        ctx.strokeStyle = ready ? "#27ae60" : "#666";
+        ctx.lineWidth = 2;
+        ctx.strokeRect(iconX, iconY, size, size);
 
         ctx.restore();
     }

@@ -1,0 +1,14 @@
+{
+  "marginWidth": 0,
+  "marginHeight": 0,
+  "xLineWidth": 0,
+  "yLineWidth": 0,
+  "animations": {
+    "idle": {
+      "yStart": -2,
+      "frameCount": 1,
+      "frameWidth": 49,
+      "frameHeight": 50
+    }
+  }
+}
