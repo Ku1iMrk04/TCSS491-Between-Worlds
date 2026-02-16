@@ -14,8 +14,8 @@ class Player extends Actor {
         this.name = "Player";
         this.facing = "right";  // Direction player is facing
         this.scale = 2;
-        this.width = 35 * this.scale;
-        this.height = 35 * this.scale;
+        this.width = 39 * this.scale;
+        this.height = 39 * this.scale;
         this.setCollider({ layer: "player" });
         this.animator = new Animator("zero", this.game.assetManager)
         this.animator.setScale(this.scale);
@@ -23,6 +23,7 @@ class Player extends Actor {
         this.currentAnimState = "idle";  // Track current animation state
         this.wasFalling = false;  // Track if player was falling (to prevent slope snapping mid-air)
         this.coyoteTime = 0;  // Frames since leaving ground (for coyote time)
+        this.onSlope = false;  // Track if player is currently on a slope
         // Register states
         this.addState("idle", new Idle());
         this.addState("run", new Run());
@@ -129,7 +130,7 @@ class Player extends Actor {
             }
         }
 
-        // Check right wall with step-up (only while moving right)
+        // Check right wall with step-up (only when moving right)
         const rightX = this.x + this.width;
         if (this.vx > 0 && (tileMap.isSolidAtWorld(rightX, headY) ||
             tileMap.isSolidAtWorld(rightX, midY) ||
@@ -169,72 +170,103 @@ class Player extends Actor {
             }
         }
 
-        // Ground collision with slope support
+        // Ground collision with slope support using movement-aware detection
         const feetY = this.y + this.height;
 
-        // Check for slopes under the player's feet
-        const leftTileX = Math.floor(leftFootX / tileMap.tileWidth);
-        const leftTileY = Math.floor(feetY / tileMap.tileHeight);
-        const rightTileX = Math.floor(rightFootX / tileMap.tileWidth);
-        const rightTileY = Math.floor(feetY / tileMap.tileHeight);
+        // Helper function to find ground (slope or solid) at a given X position
+        const findGroundAtX = (checkX, maxDepth) => {
+            let foundY = null;
+            let foundSlope = false;
 
-        let onSlope = false;
-        let slopeY = null;
+            // Check up to maxDepth tiles below
+            const startTileY = Math.floor(feetY / tileMap.tileHeight);
+            const endTileY = startTileY + maxDepth;
 
-        // Check left foot position for slope
-        const leftSlope = tileMap.getSlopeAt(leftTileX, leftTileY);
-        if (leftSlope) {
-            const leftSlopeY = leftSlope.getYForX(leftFootX);
-            // Only detect slope if we're close to it and moving down or grounded
-            if (feetY >= leftSlopeY - 4 && feetY <= leftSlopeY + 4) {
-                slopeY = leftSlopeY;
-                onSlope = true;
-            }
-        }
+            for (let tileY = startTileY; tileY <= endTileY; tileY++) {
+                const tileX = Math.floor(checkX / tileMap.tileWidth);
 
-        // Check right foot position for slope
-        const rightSlope = tileMap.getSlopeAt(rightTileX, rightTileY);
-        if (rightSlope) {
-            const rightSlopeY = rightSlope.getYForX(rightFootX);
-            // Only detect slope if we're close to it and moving down or grounded
-            if (feetY >= rightSlopeY - 4 && feetY <= rightSlopeY + 4) {
-                // Use the higher slope (lower Y value) if both feet are on slopes
-                if (slopeY === null || rightSlopeY < slopeY) {
-                    slopeY = rightSlopeY;
+                // First check for slopes
+                const slope = tileMap.getSlopeAt(tileX, tileY);
+                if (slope) {
+                    const slopeYAtX = slope.getYForX(checkX);
+                    // Only consider slopes at or below current feet position
+                    if (slopeYAtX >= feetY - 4) {
+                        if (foundY === null || slopeYAtX < foundY) {
+                            foundY = slopeYAtX;
+                            foundSlope = true;
+                        }
+                    }
                 }
-                onSlope = true;
+
+                // Also check for solid tiles
+                const tileTopY = tileY * tileMap.tileHeight;
+                if (tileMap.isSolidAtWorld(checkX, tileTopY) && tileTopY >= feetY - 4) {
+                    if (foundY === null || tileTopY < foundY) {
+                        foundY = tileTopY;
+                        foundSlope = false;
+                    }
+                }
+            }
+
+            return { y: foundY, isSlope: foundSlope };
+        };
+
+        // Positions to check: current feet positions
+        const checkPositions = [
+            { x: leftFootX, label: "left" },
+            { x: rightFootX, label: "right" }
+        ];
+
+        // If grounded and moving horizontally, also check future positions
+        if (this.grounded && Math.abs(this.vx) > 0) {
+            const futureLeftX = leftFootX + this.vx * 0.1;  // Look ahead based on velocity
+            const futureRightX = rightFootX + this.vx * 0.1;
+            checkPositions.push(
+                { x: futureLeftX, label: "future-left" },
+                { x: futureRightX, label: "future-right" }
+            );
+        }
+
+        // Find the highest ground among all check positions
+        let groundY = null;
+        let isOnSlope = false;
+        const maxSearchDepth = 2; // Check up to 2 tiles down
+
+        for (const pos of checkPositions) {
+            const ground = findGroundAtX(pos.x, maxSearchDepth);
+            if (ground.y !== null) {
+                // If grounded, use looser tolerance; if falling, use strict tolerance
+                const tolerance = this.grounded ? 32 : 4;
+
+                // Only consider ground within tolerance distance
+                if (ground.y <= feetY + tolerance) {
+                    if (groundY === null || ground.y < groundY) {
+                        groundY = ground.y;
+                        isOnSlope = ground.isSlope;
+                    }
+                }
             }
         }
 
-        // If on a slope, snap to slope surface
-        if (onSlope && slopeY !== null && this.vy >= 0) {
-            // Only snap if we're actually touching the slope (not floating above it)
-            const distanceToSlope = feetY - slopeY;
+        // Apply ground collision
+        if (groundY !== null && this.vy >= 0) {
+            const distanceToGround = feetY - groundY;
 
-            // If we're falling and far from the slope, don't snap yet
-            if (this.wasFalling && distanceToSlope < -8) {
-                // Too far above the slope, keep falling
+            // If we're falling from a jump and far above ground, don't snap yet
+            if (this.wasFalling && distanceToGround < -8) {
                 this.grounded = false;
+                this.onSlope = false;
             } else {
-                // Close enough to snap (or walking on slope normally)
-                this.y = slopeY - this.height;
+                // Snap to ground
+                this.y = groundY - this.height;
                 this.grounded = true;
+                this.onSlope = isOnSlope;
                 this.vy = 0;
             }
         } else {
-            // Normal flat ground collision
-            const leftGrounded = tileMap.isSolidAtWorld(leftFootX, feetY);
-            const rightGrounded = tileMap.isSolidAtWorld(rightFootX, feetY);
-
-            if ((leftGrounded || rightGrounded) && this.vy >= 0) {
-                // Snap to top of tile
-                const tileY = Math.floor(feetY / tileMap.tileHeight);
-                this.y = tileY * tileMap.tileHeight - this.height;
-                this.grounded = true;
-                this.vy = 0;
-            } else {
-                this.grounded = false;
-            }
+            // No ground found - player is airborne
+            this.grounded = false;
+            this.onSlope = false;
         }
     }
 

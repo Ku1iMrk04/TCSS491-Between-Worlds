@@ -127,10 +127,6 @@ class TileMap {
             if (gid >= info.firstgid) {
                 const localId = gid - info.firstgid;
                 const shapes = this.tileCollisions[localId] || null;
-                // Debug: log when we're looking up collision for tiles we defined
-                if (localId === 194 || localId === 200 || localId === 222 || localId === 226 || localId === 250) {
-                    console.log(`getCollisionShapes: gid=${gid}, firstgid=${info.firstgid}, localId=${localId}, hasShapes=${!!shapes}`);
-                }
                 return shapes;
             }
         }

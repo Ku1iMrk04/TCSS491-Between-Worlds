@@ -10,9 +10,19 @@ class Jump extends State {
         entity.grounded = false;
 
         // Set jump animation (non-looping)
-        // Will use fallback NoSpriteBudda.png until jump animation is added to zero.json
+        // Will use fallback or idle animation until jump animation is added to zero.json
         if (entity.animator) {
-            entity.animator.setAnimation("jump", entity.facing, false);
+            try {
+                // Try to set jump animation, but use idle if it doesn't exist
+                if (entity.animator.spriteAtlas && entity.animator.spriteAtlas.hasAnimation("jump")) {
+                    entity.animator.setAnimation("jump", entity.facing, false);
+                } else {
+                    // Use idle animation as fallback for jumping
+                    entity.animator.setAnimation("idle", entity.facing, true);
+                }
+            } catch (err) {
+                console.error("Error setting jump animation:", err);
+            }
         }
     }
 
@@ -52,7 +62,7 @@ class Jump extends State {
 
     exit() {
         // Reset vertical velocity when landing
-        if (this.myEntity.grounded) {
+        if (this.myEntity && this.myEntity.grounded) {
             this.myEntity.vy = 0;
         }
     }
