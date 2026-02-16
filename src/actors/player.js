@@ -100,7 +100,7 @@ class Player extends Actor {
         const leftFootX = this.x + 10;
         const rightFootX = this.x + this.width - 10;
 
-        // Check left wall with step-up (only when moving left)
+        // Check left wall with step-up (only while moving left)
         if (this.vx < 0 && (tileMap.isSolidAtWorld(this.x, headY) ||
             tileMap.isSolidAtWorld(this.x, midY) ||
             tileMap.isSolidAtWorld(this.x, feetCheckY))) {

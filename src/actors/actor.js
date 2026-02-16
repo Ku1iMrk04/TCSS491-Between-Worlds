@@ -26,6 +26,8 @@ class Actor {
 
         // Combat properties
         this.invulnerable = false;
+        this.damageCooldown = 0.3;
+        this.damageCooldownTimer = 0;
 
     }
 
@@ -87,6 +89,10 @@ class Actor {
     update() {
 
         const dt = this.game.clockTick;
+
+        if (this.damageCooldownTimer > 0) {
+            this.damageCooldownTimer -= dt;
+        }
 
         // Apply physics if not grounded
         if (!this.grounded) {

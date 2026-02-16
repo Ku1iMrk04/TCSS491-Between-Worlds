@@ -35,9 +35,9 @@ class AttackHitbox {
         // Current position (account for facing direction)
         this.y = owner.y + this.offsetY;
         if (owner.facing === "left") {
-            this.x = owner.x - this.collider.size.width;
+            this.x = owner.x - this.collider.size.width - this.offsetX;
         } else {
-            this.x = owner.x + owner.width;
+            this.x = owner.x + owner.width + this.offsetX;
         }
 
         // Track what we've already hit this attack (prevent multi-hit)
@@ -72,9 +72,9 @@ class AttackHitbox {
 
         // Position hitbox based on facing direction
         if (this.owner.facing === "left") {
-            this.x = this.owner.x - this.collider.size.width;
+            this.x = this.owner.x - this.collider.size.width - this.offsetX;
         } else {
-            this.x = this.owner.x + this.owner.width;
+            this.x = this.owner.x + this.owner.width + this.offsetX;
         }
 
         // Update slash animation
