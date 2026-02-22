@@ -40,7 +40,7 @@ ASSET_MANAGER.downloadAll(async () => {
 	};
 
 	// Load the tilemap with tilesets
-	const tileMap = await mapLoader.load("assets/maps/prison.json", tilesets);
+	const tileMap = await mapLoader.load("assets/maps/1-1.json", tilesets);
 	gameEngine.tileMap = tileMap;
 
 	setupCollisions(gameEngine.collisionManager);

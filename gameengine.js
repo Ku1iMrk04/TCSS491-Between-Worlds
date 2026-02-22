@@ -2,6 +2,7 @@
 import { Timer } from "./timer.js";
 import { requestAnimFrame } from "./util.js";
 import CollisionManager from "./src/collision/collisionmanager.js";
+import Camera from "./src/camera.js";
 // This game shell was happily modified from Googler Seth Ladd's "Bad Aliens" game and his Google IO talk in 2011
 
 export class GameEngine {
@@ -15,6 +16,9 @@ export class GameEngine {
 
         // Collision detection
         this.collisionManager = new CollisionManager();
+
+        // Camera (will be initialized when map loads)
+        this.camera = null;
 
         // Information on the input
         this.click = null;
@@ -189,16 +193,22 @@ export class GameEngine {
             return;
         }
 
-        // Draw scene (background) first
+        // Draw scene (background, tilemap, etc.) first
         const scene = this.sceneManager?.currentScene;
         if (scene && scene.draw) scene.draw(this.ctx);
 
-        // Scale factor for map rendering (map is 960x640, canvas is 1920x1080)
+        // Scale factor for map rendering (canvas is 1920x1080, viewport is 960x540)
         const scale = 2;
 
-        // Draw entities scaled to match the map
+        // Draw entities scaled and with camera transform
         this.ctx.save();
         this.ctx.scale(scale, scale);
+
+        // Apply camera transform to entities
+        if (this.camera) {
+            this.camera.applyTransform(this.ctx);
+        }
+
         for (let i = this.entities.length - 1; i >= 0; i--) {
             this.entities[i].draw(this.ctx, this);
         }
@@ -224,6 +234,11 @@ export class GameEngine {
             if (!entity.removeFromWorld) {
                 entity.update();
             }
+        }
+
+        // Update camera after entities have moved
+        if (this.camera) {
+            this.camera.update();
         }
 
         // Check collisions after all entities have moved

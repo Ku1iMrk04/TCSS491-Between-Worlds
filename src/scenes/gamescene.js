@@ -6,6 +6,7 @@ import ScientistEnemy from "../actors/scientistenemy.js";
 import GangsterEnemy from "../actors/gangsterenemy.js";
 import DeathScene from "./deathscene.js";
 import MenuScene from "./menuscene.js";
+import Camera from "../camera.js";
 
 
 class GameScene extends Scene {
@@ -23,6 +24,15 @@ class GameScene extends Scene {
 
         const tileMap = this.game.tileMap;
 
+        // Initialize camera based on map size
+        // Viewport size is 960x540 (the scaled-down canvas size)
+        const viewportWidth = 960;
+        const viewportHeight = 540;
+        const worldWidth = tileMap.width * tileMap.tileWidth;
+        const worldHeight = tileMap.height * tileMap.tileHeight;
+
+        this.game.camera = new Camera(viewportWidth, viewportHeight, worldWidth, worldHeight);
+
         // Spawn player from map data
         const playerSpawn = tileMap.getPlayerSpawn();
         if (playerSpawn) {
@@ -32,6 +42,9 @@ class GameScene extends Scene {
             this.player = new Player(this.game, 300, 750);
         }
         this.game.addEntity(this.player);
+
+        // Set camera to follow player
+        this.game.camera.follow(this.player);
 
         // Spawn enemies from map data
         const enemySpawns = tileMap.getEnemySpawns();
@@ -71,11 +84,16 @@ class GameScene extends Scene {
         ctx.mozImageSmoothingEnabled = false;
         ctx.msImageSmoothingEnabled = false;
 
-        // Scale factor: map is 960x640, canvas is 1920x1080
+        // Scale factor: canvas is 1920x1080, viewport is 960x540
         const scale = 2;
 
         ctx.save();
         ctx.scale(scale, scale);
+
+        // Apply camera transform
+        if (this.game.camera) {
+            this.game.camera.applyTransform(ctx);
+        }
 
         // Draw tilemap background layer first
         if (this.game.tileMap) {
@@ -94,7 +112,7 @@ class GameScene extends Scene {
 
         ctx.restore();
 
-        // Then draw HUD on top (not scaled)
+        // Then draw HUD on top (not scaled, not affected by camera)
         this.drawLevelLabel(ctx);
         this.drawControlsHub(ctx);
         this.drawPlayerHealthBar(ctx);
