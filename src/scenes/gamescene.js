@@ -510,6 +510,8 @@ class GameScene extends Scene {
         this.showPauseControls = false;
         this.game.click = null;
         this.game.rightclick = null;
+    }
+
     drawDreamMeter(ctx) {
         if (!this.player) return;
 

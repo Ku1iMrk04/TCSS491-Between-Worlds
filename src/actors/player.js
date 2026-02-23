@@ -165,7 +165,9 @@ class Player extends Actor {
             if (this.coyoteTime > 3 && this.vy > 0 &&
                 this.currentState !== this.states["fall"] &&
                 this.currentState !== this.states["attack"] &&
-                this.currentState !== this.states["roll"]) {
+                this.currentState !== this.states["roll"] &&
+                this.currentState !== this.states["dreamslashaim"] &&
+                this.currentState !== this.states["dreamslash"]) {
                 this.wasFalling = true;
                 this.changeState("fall");
             }

@@ -493,7 +493,7 @@ class TileMap {
         return [
             { x: 700, y: 256, type: "grunt" },
             { x: 840, y: 256, type: "scientist" },
-            { x: 720, y: 128, type: "gangster" }
+            { x: 1000, y: 700, type: "gangster" }
         ];
     }
 
