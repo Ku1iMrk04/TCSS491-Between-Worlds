@@ -231,6 +231,11 @@ export class GameEngine {
             this.entities[i].draw(this.ctx, this);
         }
         this.ctx.restore();
+
+        // Optional top-layer UI for gameplay scenes (pause overlays, HUD buttons, etc.).
+        if (scene && typeof scene.drawOverlay === "function") {
+            scene.drawOverlay(this.ctx);
+        }
     };
 
     update() {
@@ -241,6 +246,11 @@ export class GameEngine {
 
         // if not gameplay, skip entity updates/collisions
         if (this.sceneManager && !this.isGamePlayScene()) {
+            return;
+        }
+
+        const currentScene = this.sceneManager?.currentScene;
+        if (currentScene?.isPaused) {
             return;
         }
 
