@@ -3,6 +3,7 @@ import { Timer } from "./timer.js";
 import { requestAnimFrame } from "./util.js";
 import CollisionManager from "./src/collision/collisionmanager.js";
 import Camera from "./src/camera.js";
+import { CoordinateOverlay } from "./src/debug/coordinateoverlay.js";
 // This game shell was happily modified from Googler Seth Ladd's "Bad Aliens" game and his Google IO talk in 2011
 
 export class GameEngine {
@@ -51,12 +52,18 @@ export class GameEngine {
         this.options = options || {
             debugging: false,
         };
+
+        // Debug overlay for coordinate display
+        this.coordinateOverlay = null;
     };
 
     init(ctx) {
         this.ctx = ctx;
         this.startInput();
         this.timer = new Timer();
+
+        // Initialize coordinate overlay
+        this.coordinateOverlay = new CoordinateOverlay(this);
     };
 
     start() {
@@ -235,6 +242,11 @@ export class GameEngine {
         // Optional top-layer UI for gameplay scenes (pause overlays, HUD buttons, etc.).
         if (scene && typeof scene.drawOverlay === "function") {
             scene.drawOverlay(this.ctx);
+        }
+
+        // Draw coordinate overlay (always on top)
+        if (this.coordinateOverlay) {
+            this.coordinateOverlay.draw(this.ctx);
         }
     };
 
