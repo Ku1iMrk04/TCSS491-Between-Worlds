@@ -8,8 +8,22 @@ import Roll from "../states/roll.js";
 import DashStrike from "../states/dashstrike.js";
 import DashStrikeAim from "../states/dashstrikeaim.js";
 import Fall from "../states/fall.js";
+import DreamSlash from "../states/dreamslash.js";
+import DreamSlashAim from "../states/dreamslashaim.js";
 
 import Animator from "../animation/animator.js";
+
+const PLAYER_WALL_SAMPLE_INSET = 10;
+const PLAYER_MAX_STEP_HEIGHT = 16;
+const PLAYER_CEILING_SAMPLE_OFFSET = 10;
+const PLAYER_GROUND_SEARCH_DEPTH_TILES = 2;
+const PLAYER_GROUND_SEARCH_PADDING_TILES = 1;
+const PLAYER_GROUND_AIRBORNE_TOLERANCE = 4;
+const PLAYER_GROUND_GROUNDED_TOLERANCE = 32;
+const PLAYER_GROUND_LOOKAHEAD_SECONDS = 0.1;
+const PLAYER_SLOPE_FALL_SNAP_THRESHOLD = -8;
+const PLAYER_TILE_SURFACE_PROBE_OFFSET = 1;
+
 class Player extends Actor {
     constructor(game, x, y) {
         super(game, x, y);
@@ -35,6 +49,8 @@ class Player extends Actor {
         this.addState("attack", new Attack());
         this.addState("dashstrike", new DashStrike());
         this.addState("dashstrikeaim", new DashStrikeAim());
+        this.addState("dreamslash", new DreamSlash());
+        this.addState("dreamslashaim", new DreamSlashAim());
         this.changeState("idle");
 
         // Dash Strike cooldown
@@ -42,6 +58,17 @@ class Player extends Actor {
         this.dashStrikeCooldownTimer = 0;
         this.dashStrikeTarget = null;
         this.dashStrikeMaxRange = 300;
+
+        // Dream State
+        this.dreamMeter = 1;
+        this.dreamMeterMax = 1;
+        this.dreamMeterChargePerHit = 0.15;
+        this.inDreamState = false;
+        this.dreamDrainRate = 0.08;
+        this.dreamBlinkCost = 0.15;
+        this.dreamSpeedMultiplier = 1.5;
+        this.dreamSlashTargetX = 0;
+        this.dreamSlashTargetY = 0;
 
     }
 
@@ -57,21 +84,35 @@ class Player extends Actor {
             this.dashStrikeCooldownTimer -= dt;
         }
 
+        // Dream state drain
+        if (this.inDreamState) {
+            this.dreamMeter -= this.dreamDrainRate * dt;
+            if (this.dreamMeter <= 0) {
+                this.dreamMeter = 0;
+                this.inDreamState = false;
+                this.speed /= this.dreamSpeedMultiplier;
+            }
+        }
+
+        // Dream state activation (E key)
+        if (this.game.eKey && !this.inDreamState && this.dreamMeter >= this.dreamMeterMax) {
+            this.inDreamState = true;
+            this.speed *= this.dreamSpeedMultiplier;
+            this.game.eKey = false;
+        }
+
         // Track if player was grounded last frame
         const wasGrounded = this.grounded;
-
-        // Jump input (only when grounded and not attacking/rolling)
-        if (this.game.space && this.grounded && this.currentState !== this.states["attack"] && this.currentState !== this.states["roll"]) {
-            this.changeState("jump");
-        }
 
         this.dashStrikeTarget = this._findClosestEnemyInRange();
 
         const isAiming = this.currentState === this.states["dashstrikeaim"];
         const isDashing = this.currentState === this.states["dashstrike"];
+        const isBlinking = this.currentState === this.states["dreamslash"];
+        const isDreamAiming = this.currentState === this.states["dreamslashaim"];
 
-        // Block all other inputs while aiming or dashing
-        if (!isAiming && !isDashing) {
+        // Block all other inputs while aiming, dashing, or blinking
+        if (!isAiming && !isDashing && !isBlinking && !isDreamAiming) {
             // Jump input (only when grounded and not attacking/rolling)
             if (this.game.space && this.grounded && this.currentState !== this.states["attack"] && this.currentState !== this.states["roll"]) {
                 this.changeState("jump");
@@ -84,12 +125,16 @@ class Player extends Actor {
 
             // Attack input with left click (can attack mid-air)
             if (this.game.click && this.currentState !== this.states["attack"] && this.currentState !== this.states["roll"]) {
-                this.changeState("attack");
-                this.game.click = null;  // Reset click to prevent continuous attacking
+                if (this.inDreamState) {
+                    this.changeState("dreamslashaim");
+                } else {
+                    this.changeState("attack");
+                }
+                this.game.click = null;
             }
 
-            // Dash Strike input - right mouse button pressed down
-            if (this.game.rightclick) {
+            // Dash Strike input - right mouse button (disabled in dream state)
+            if (!this.inDreamState && this.game.rightclick) {
                 if (this.dashStrikeCooldownTimer <= 0
                     && this.currentState !== this.states["roll"]
                     && this.dashStrikeTarget) {
@@ -100,11 +145,14 @@ class Player extends Actor {
             }
         }
 
+        // Track previous Y to support swept landing checks and prevent floor tunneling.
+        const previousY = this.y;
+
         // Call parent update (applies physics and runs state logic)
         super.update();
 
         // Tilemap collision detection AFTER physics moves the player
-        this.handleTileCollision();
+        this.handleTileCollision(previousY);
 
         // Track falling state: if we just left the ground and are moving down
         if (wasGrounded && !this.grounded) {
@@ -117,7 +165,9 @@ class Player extends Actor {
             if (this.coyoteTime > 3 && this.vy > 0 &&
                 this.currentState !== this.states["fall"] &&
                 this.currentState !== this.states["attack"] &&
-                this.currentState !== this.states["roll"]) {
+                this.currentState !== this.states["roll"] &&
+                this.currentState !== this.states["dreamslashaim"] &&
+                this.currentState !== this.states["dreamslash"]) {
                 this.wasFalling = true;
                 this.changeState("fall");
             }
@@ -128,17 +178,18 @@ class Player extends Actor {
         }
     }
 
-    handleTileCollision() {
+    handleTileCollision(previousY = this.y) {
         const tileMap = this.game.tileMap;
         if (!tileMap) return;
 
         // Horizontal collision (walls)
-        const headY = this.y + 10;
+        const headY = this.y + PLAYER_CEILING_SAMPLE_OFFSET;
         const midY = this.y + this.height / 2;
-        const feetCheckY = this.y + this.height - 10;
+        const feetCheckY = this.y + this.height - PLAYER_WALL_SAMPLE_INSET;
 
-        const leftFootX = this.x + 10;
-        const rightFootX = this.x + this.width - 10;
+        const leftFootX = this.x + PLAYER_WALL_SAMPLE_INSET;
+        const rightFootX = this.x + this.width - PLAYER_WALL_SAMPLE_INSET;
+        const centerFootX = this.x + (this.width / 2);
 
         // Check left wall with step-up (only while moving left)
         if (this.vx < 0 && (tileMap.isSolidAtWorld(this.x, headY) ||
@@ -147,14 +198,13 @@ class Player extends Actor {
 
             // Try to step up (check if there's clearance above)
             let canStepUp = false;
-            const maxStepHeight = 16; // Maximum pixels we can step up
 
-            for (let step = 1; step <= maxStepHeight; step++) {
+            for (let step = 1; step <= PLAYER_MAX_STEP_HEIGHT; step++) {
                 const testY = this.y - step;
                 // Check if at this height, we can move forward
-                if (!tileMap.isSolidAtWorld(this.x, testY + 10) &&
+                if (!tileMap.isSolidAtWorld(this.x, testY + PLAYER_CEILING_SAMPLE_OFFSET) &&
                     !tileMap.isSolidAtWorld(this.x, testY + this.height / 2) &&
-                    !tileMap.isSolidAtWorld(this.x, testY + this.height - 10)) {
+                    !tileMap.isSolidAtWorld(this.x, testY + this.height - PLAYER_WALL_SAMPLE_INSET)) {
                     // Found a height where we can pass through
                     this.y = testY;
                     canStepUp = true;
@@ -178,14 +228,13 @@ class Player extends Actor {
 
             // Try to step up (check if there's clearance above)
             let canStepUp = false;
-            const maxStepHeight = 16; // Maximum pixels we can step up
 
-            for (let step = 1; step <= maxStepHeight; step++) {
+            for (let step = 1; step <= PLAYER_MAX_STEP_HEIGHT; step++) {
                 const testY = this.y - step;
                 // Check if at this height, we can move forward
-                if (!tileMap.isSolidAtWorld(rightX, testY + 10) &&
+                if (!tileMap.isSolidAtWorld(rightX, testY + PLAYER_CEILING_SAMPLE_OFFSET) &&
                     !tileMap.isSolidAtWorld(rightX, testY + this.height / 2) &&
-                    !tileMap.isSolidAtWorld(rightX, testY + this.height - 10)) {
+                    !tileMap.isSolidAtWorld(rightX, testY + this.height - PLAYER_WALL_SAMPLE_INSET)) {
                     // Found a height where we can pass through
                     this.y = testY;
                     canStepUp = true;
@@ -212,25 +261,31 @@ class Player extends Actor {
 
         // Ground collision with slope support using movement-aware detection
         const feetY = this.y + this.height;
+        const previousFeetY = previousY + this.height;
+        const landingTolerance = this.grounded ? PLAYER_GROUND_GROUNDED_TOLERANCE : PLAYER_GROUND_AIRBORNE_TOLERANCE;
+        const sweepMinY = Math.min(previousFeetY, feetY) - PLAYER_GROUND_AIRBORNE_TOLERANCE;
+        const sweepMaxY = Math.max(previousFeetY, feetY) + landingTolerance;
 
         // Helper function to find ground (slope or solid) at a given X position
         const findGroundAtX = (checkX, maxDepth) => {
             let foundY = null;
             let foundSlope = false;
 
-            // Check up to maxDepth tiles below
-            const startTileY = Math.floor(feetY / tileMap.tileHeight);
-            const endTileY = startTileY + maxDepth;
+            // Check around the swept feet range, plus a small search depth below.
+            const startTileY = Math.floor(sweepMinY / tileMap.tileHeight) - PLAYER_GROUND_SEARCH_PADDING_TILES;
+            const endTileY = Math.floor(sweepMaxY / tileMap.tileHeight) + maxDepth;
 
             for (let tileY = startTileY; tileY <= endTileY; tileY++) {
+                if (tileY < 0 || tileY >= tileMap.height) continue;
+
                 const tileX = Math.floor(checkX / tileMap.tileWidth);
+                if (tileX < 0 || tileX >= tileMap.width) continue;
 
                 // First check for slopes
                 const slope = tileMap.getSlopeAt(tileX, tileY);
                 if (slope) {
                     const slopeYAtX = slope.getYForX(checkX);
-                    // Only consider slopes at or below current feet position
-                    if (slopeYAtX >= feetY - 4) {
+                    if (slopeYAtX >= sweepMinY && slopeYAtX <= sweepMaxY) {
                         if (foundY === null || slopeYAtX < foundY) {
                             foundY = slopeYAtX;
                             foundSlope = true;
@@ -240,7 +295,8 @@ class Player extends Actor {
 
                 // Also check for solid tiles
                 const tileTopY = tileY * tileMap.tileHeight;
-                if (tileMap.isSolidAtWorld(checkX, tileTopY) && tileTopY >= feetY - 4) {
+                const solidProbeY = tileTopY + PLAYER_TILE_SURFACE_PROBE_OFFSET;
+                if (tileMap.isSolidAtWorld(checkX, solidProbeY) && tileTopY >= sweepMinY && tileTopY <= sweepMaxY) {
                     if (foundY === null || tileTopY < foundY) {
                         foundY = tileTopY;
                         foundSlope = false;
@@ -254,15 +310,18 @@ class Player extends Actor {
         // Positions to check: current feet positions
         const checkPositions = [
             { x: leftFootX, label: "left" },
+            { x: centerFootX, label: "center" },
             { x: rightFootX, label: "right" }
         ];
 
         // If grounded and moving horizontally, also check future positions
         if (this.grounded && Math.abs(this.vx) > 0) {
-            const futureLeftX = leftFootX + this.vx * 0.1;  // Look ahead based on velocity
-            const futureRightX = rightFootX + this.vx * 0.1;
+            const futureLeftX = leftFootX + this.vx * PLAYER_GROUND_LOOKAHEAD_SECONDS;
+            const futureCenterX = centerFootX + this.vx * PLAYER_GROUND_LOOKAHEAD_SECONDS;
+            const futureRightX = rightFootX + this.vx * PLAYER_GROUND_LOOKAHEAD_SECONDS;
             checkPositions.push(
                 { x: futureLeftX, label: "future-left" },
+                { x: futureCenterX, label: "future-center" },
                 { x: futureRightX, label: "future-right" }
             );
         }
@@ -270,16 +329,13 @@ class Player extends Actor {
         // Find the highest ground among all check positions
         let groundY = null;
         let isOnSlope = false;
-        const maxSearchDepth = 2; // Check up to 2 tiles down
+        const maxSearchDepth = PLAYER_GROUND_SEARCH_DEPTH_TILES;
 
         for (const pos of checkPositions) {
             const ground = findGroundAtX(pos.x, maxSearchDepth);
             if (ground.y !== null) {
-                // If grounded, use looser tolerance; if falling, use strict tolerance
-                const tolerance = this.grounded ? 32 : 4;
-
-                // Only consider ground within tolerance distance
-                if (ground.y <= feetY + tolerance) {
+                // Keep compatibility with previous grounded-vs-airborne snap behavior.
+                if (ground.y <= feetY + landingTolerance) {
                     if (groundY === null || ground.y < groundY) {
                         groundY = ground.y;
                         isOnSlope = ground.isSlope;
@@ -293,7 +349,7 @@ class Player extends Actor {
             const distanceToGround = feetY - groundY;
 
             // If we're falling from a jump and far above ground, don't snap yet
-            if (this.wasFalling && distanceToGround < -8) {
+            if (this.wasFalling && distanceToGround < PLAYER_SLOPE_FALL_SNAP_THRESHOLD) {
                 this.grounded = false;
                 this.onSlope = false;
             } else {
@@ -322,6 +378,11 @@ class Player extends Actor {
         // Draw skill shot bar during aiming
         if (this.currentState === this.states["dashstrikeaim"]) {
             this._drawSkillShotBar(ctx);
+        }
+
+        // Draw dream slash aim line
+        if (this.currentState === this.states["dreamslashaim"]) {
+            this.states["dreamslashaim"].drawAimLine(ctx);
         }
     }
 

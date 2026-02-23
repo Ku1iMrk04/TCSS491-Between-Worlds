@@ -31,9 +31,9 @@ class TileMap {
         this.parseLayer(mapData.layers);
 
         // Debug: log unique foreground tile GIDs
-        if (this.layers.foreground) {
+        if (this.layers.Foreground) {
             const uniqueGids = new Set();
-            for (const row of this.layers.foreground) {
+            for (const row of this.layers.Foreground) {
                 for (const gid of row) {
                     if (gid !== 0) uniqueGids.add(gid);
                 }
@@ -51,7 +51,7 @@ class TileMap {
         for (const ts of tilesets) {
             info.push({
                 firstgid: ts.firstgid,
-                source: ts.source || ts.image,
+                image: ts.image || ts.source,
                 columns: ts.columns || 27
             });
         }
@@ -195,7 +195,7 @@ class TileMap {
      * @returns {Array|null} Array of collision shapes or null if no custom collision
      */
     getTileCollision(tileX, tileY) {
-        const foreground = this.layers.foreground;
+        const foreground = this.layers.Foreground;
         if (!foreground) return null;
 
         if (tileX < 0 || tileX >= this.width || tileY < 0 || tileY >= this.height) {
@@ -295,7 +295,7 @@ class TileMap {
             return true;
         }
 
-        const foreground = this.layers.foreground;
+        const foreground = this.layers.Foreground;
         if (!foreground) return false;
 
         const gid = foreground[tileY][tileX];
@@ -337,7 +337,7 @@ class TileMap {
             return true;
         }
 
-        const foreground = this.layers.foreground;
+        const foreground = this.layers.Foreground;
         if (!foreground) return false;
 
         const gid = foreground[tileY][tileX];
@@ -387,7 +387,7 @@ class TileMap {
                     return true; // Out of bounds = collision
                 }
 
-                const foreground = this.layers.foreground;
+                const foreground = this.layers.Foreground;
                 if (!foreground) continue;
 
                 const gid = foreground[tileY][tileX];
@@ -491,9 +491,9 @@ class TileMap {
      */
     getEnemySpawns() {
         return [
-            { x: 700, y: 256, type: "grunt" },
+            { x: 2111, y: 480, type: "grunt" },
             { x: 840, y: 256, type: "scientist" },
-            { x: 720, y: 128, type: "gangster" }
+            { x: 1000, y: 700, type: "gangster" }
         ];
     }
 
@@ -502,7 +502,7 @@ class TileMap {
      * Shows polygon shapes when available
      */
     drawDebug(ctx) {
-        const foreground = this.layers.foreground;
+        const foreground = this.layers.Foreground;
         if (!foreground) return;
 
         ctx.save();
@@ -573,9 +573,10 @@ class TileMap {
 
         for (const info of this.tilesetInfo) {
             if (gid >= info.firstgid) {
-                const isBackground = info.firstgid === 1;
-                const image = isBackground ? this.tilesets.background : this.tilesets.foreground;
-                const tilesPerRow = isBackground ? 28 : 27;
+                // Detect tileset type by checking the image source path
+                const isForeground = info.image && info.image.toLowerCase().includes('foreground');
+                const image = isForeground ? this.tilesets.foreground : this.tilesets.background;
+                const tilesPerRow = isForeground ? 27 : 28;
                 return {
                     image: image,
                     localId: gid - info.firstgid,
@@ -614,11 +615,11 @@ class TileMap {
     }
 
     drawBackground(ctx) {
-        this.drawLayer(ctx, "background");
+        this.drawLayer(ctx, "Background");
     }
 
     drawForeground(ctx) {
-        this.drawLayer(ctx, "foreground");
+        this.drawLayer(ctx, "Foreground");
     }
 }
 

@@ -32,6 +32,19 @@ export function setupCollisions(collisionManager) {
                 enemy.takeDamage(hitbox.damage);
             }
 
+            // Screen shake on hit
+            if (hitbox.owner.game.camera) {
+                hitbox.owner.game.camera.shake(5, 0.15);
+            }
+
+            // Charge dream meter on hit
+            if (hitbox.owner.dreamMeter !== undefined) {
+                hitbox.owner.dreamMeter = Math.min(
+                    hitbox.owner.dreamMeterMax,
+                    hitbox.owner.dreamMeter + hitbox.owner.dreamMeterChargePerHit
+                );
+            }
+
             // Apply knockback
             if (hitbox.knockback) {
                 const dx = enemy.x - hitbox.owner.x;
