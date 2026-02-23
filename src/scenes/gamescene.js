@@ -9,6 +9,39 @@ import LevelCompleteScene from "./levelcompletescene.js";
 import MenuScene from "./menuscene.js";
 
 const ENEMY_COLLISION_LAYER = "enemy";
+const PAUSE_BUTTON_SIZE = 42;
+const PAUSE_BUTTON_MARGIN_TOP = 18;
+const PAUSE_BUTTON_MARGIN_RIGHT = 18;
+const PAUSE_BUTTON_LINE_INSET_X = 10;
+const PAUSE_BUTTON_LINE_START_Y = 12;
+const PAUSE_BUTTON_LINE_GAP = 8;
+const PAUSE_BUTTON_LINE_THICKNESS = 3;
+
+const PAUSE_OPTION_RESUME = "Resume";
+const PAUSE_OPTION_RESTART = "Restart";
+const PAUSE_OPTION_CONTROLS = "Controls";
+const PAUSE_OVERLAY_OPTIONS = [PAUSE_OPTION_RESUME, PAUSE_OPTION_RESTART, PAUSE_OPTION_CONTROLS];
+
+const PAUSE_OVERLAY_PANEL_WIDTH = 900;
+const PAUSE_OVERLAY_PANEL_HEIGHT = 560;
+const PAUSE_OVERLAY_TITLE_Y_OFFSET = 52;
+const PAUSE_OVERLAY_OPTIONS_Y_OFFSET = 110;
+const PAUSE_OVERLAY_OPTION_WIDTH = 220;
+const PAUSE_OVERLAY_OPTION_HEIGHT = 52;
+const PAUSE_OVERLAY_OPTION_GAP = 18;
+const PAUSE_OVERLAY_CONTROLS_BOX_MARGIN_X = 34;
+const PAUSE_OVERLAY_CONTROLS_BOX_Y_OFFSET = 190;
+const PAUSE_OVERLAY_CONTROLS_BOX_HEIGHT = 320;
+const PAUSE_OVERLAY_CONTROLS_TEXT_PADDING = 24;
+const PAUSE_OVERLAY_CONTROLS_LINE_HEIGHT = 34;
+
+const PAUSE_CONTROLS_LINES = [
+    "Controls:",
+    "Move: WASD / Arrow Keys",
+    "Attack: Left Click",
+    "Roll: Left Shift",
+    "Dash Strike: Right Click"
+];
 
 
 class GameScene extends Scene {
@@ -19,12 +52,19 @@ class GameScene extends Scene {
 
         this.player = null;
         this.levelCompleteTriggered = false;
+        this.isPaused = false;
+        this.showPauseControls = false;
+        this.pauseMenuButtonRects = [];
+        this.pauseButtonRect = null;
     }
 
     enter() {
         // reset entities for a clean run
         this.game.entities = [];
         this.levelCompleteTriggered = false;
+        this.isPaused = false;
+        this.showPauseControls = false;
+        this.pauseMenuButtonRects = [];
 
         const tileMap = this.game.tileMap;
 
@@ -62,7 +102,37 @@ class GameScene extends Scene {
         }
     }
 
+    onClick(x, y) {
+        const pauseButtonRect = this.getPauseButtonRect();
+
+        if (this.isPaused) {
+            // Consume clicks while paused so gameplay attack input is not queued.
+            this.game.click = null;
+
+            if (pauseButtonRect && this.isPointInsideRect(x, y, pauseButtonRect)) {
+                return;
+            }
+
+            for (const button of this.pauseMenuButtonRects) {
+                if (this.isPointInsideRect(x, y, button)) {
+                    this.handlePauseOption(button.action);
+                    return;
+                }
+            }
+            return;
+        }
+
+        if (pauseButtonRect && this.isPointInsideRect(x, y, pauseButtonRect)) {
+            this.pauseGameplay();
+            this.game.click = null;
+        }
+    }
+
     update() {
+        if (this.isPaused) {
+            return;
+        }
+
         if (this.levelCompleteTriggered) {
             return;
         }
@@ -126,9 +196,16 @@ class GameScene extends Scene {
 
         // Then draw HUD on top (not scaled)
         this.drawLevelLabel(ctx);
-        this.drawControlsHub(ctx);
         this.drawPlayerHealthBar(ctx);
         this.drawDashStrikeCooldown(ctx);
+    }
+
+    drawOverlay(ctx) {
+        this.drawPauseButton(ctx);
+
+        if (this.isPaused) {
+            this.drawPauseOverlay(ctx);
+        }
     }
 
     drawLevelLabel(ctx) {
@@ -144,39 +221,6 @@ class GameScene extends Scene {
         const y = 36;
 
         ctx.fillText(text, x, y);
-        ctx.restore();
-    }
-
-    drawControlsHub(ctx) {
-        const lineHeight = 40
-        const boxW = 520;
-        const boxH = 240;
-        const x = ctx.canvas.width - boxW - 32;
-        const y = 32;
-        const pad = 20;
-
-        ctx.save();
-
-        // faint gray panel
-        ctx.globalAlpha = 0.75;
-        ctx.fillStyle = "#e0e0e0";
-        ctx.fillRect(x, y, boxW, boxH);
-
-        // border
-        ctx.globalAlpha = 1;
-        ctx.strokeStyle = "#b0b0b0";
-        ctx.strokeRect(x, y, boxW, boxH);
-
-        // text
-        ctx.fillStyle = "#333";
-        ctx.font = "28px Arial";
-        ctx.textBaseline = "top";
-        ctx.fillText("Controls:", x + pad, y + pad);
-        ctx.fillText("Move: WASD / Arrow Keys", x + pad, y + pad + lineHeight);
-        ctx.fillText("Attack: Left Click", x + pad, y + pad + (lineHeight * 2));
-        ctx.fillText("Roll: Left Shift", x + pad, y + pad + (lineHeight * 3));
-        ctx.fillText("Dash Strike: Right Click", x + pad, y + pad + (lineHeight * 4));
-
         ctx.restore();
     }
 
@@ -276,6 +320,167 @@ class GameScene extends Scene {
         ctx.strokeRect(iconX, iconY, size, size);
 
         ctx.restore();
+    }
+
+    drawPauseButton(ctx) {
+        const rect = this.getPauseButtonRect();
+        if (!rect) return;
+
+        this.pauseButtonRect = rect;
+
+        ctx.save();
+        ctx.fillStyle = "rgba(0, 0, 0, 0.55)";
+        ctx.fillRect(rect.x, rect.y, rect.w, rect.h);
+        ctx.strokeStyle = "rgba(255, 255, 255, 0.85)";
+        ctx.lineWidth = 2;
+        ctx.strokeRect(rect.x, rect.y, rect.w, rect.h);
+
+        ctx.fillStyle = "#ffffff";
+        const lineWidth = rect.w - (PAUSE_BUTTON_LINE_INSET_X * 2);
+        for (let i = 0; i < 3; i++) {
+            const lineY = rect.y + PAUSE_BUTTON_LINE_START_Y + (i * PAUSE_BUTTON_LINE_GAP);
+            ctx.fillRect(rect.x + PAUSE_BUTTON_LINE_INSET_X, lineY, lineWidth, PAUSE_BUTTON_LINE_THICKNESS);
+        }
+        ctx.restore();
+    }
+
+    drawPauseOverlay(ctx) {
+        const canvasW = ctx.canvas.width;
+        const canvasH = ctx.canvas.height;
+        const panelX = (canvasW - PAUSE_OVERLAY_PANEL_WIDTH) / 2;
+        const panelY = (canvasH - PAUSE_OVERLAY_PANEL_HEIGHT) / 2;
+
+        ctx.save();
+        ctx.fillStyle = "rgba(0, 0, 0, 0.45)";
+        ctx.fillRect(0, 0, canvasW, canvasH);
+
+        ctx.fillStyle = "rgba(16, 24, 48, 0.95)";
+        ctx.fillRect(panelX, panelY, PAUSE_OVERLAY_PANEL_WIDTH, PAUSE_OVERLAY_PANEL_HEIGHT);
+        ctx.strokeStyle = "rgba(255, 255, 255, 0.35)";
+        ctx.lineWidth = 2;
+        ctx.strokeRect(panelX, panelY, PAUSE_OVERLAY_PANEL_WIDTH, PAUSE_OVERLAY_PANEL_HEIGHT);
+
+        ctx.fillStyle = "white";
+        ctx.font = '44px "Orbitron", sans-serif';
+        ctx.textAlign = "center";
+        ctx.textBaseline = "middle";
+        ctx.fillText("Paused", panelX + (PAUSE_OVERLAY_PANEL_WIDTH / 2), panelY + PAUSE_OVERLAY_TITLE_Y_OFFSET);
+
+        this.pauseMenuButtonRects = [];
+        const totalButtonsWidth = (PAUSE_OVERLAY_OPTION_WIDTH * PAUSE_OVERLAY_OPTIONS.length) +
+            (PAUSE_OVERLAY_OPTION_GAP * (PAUSE_OVERLAY_OPTIONS.length - 1));
+        const buttonsStartX = panelX + ((PAUSE_OVERLAY_PANEL_WIDTH - totalButtonsWidth) / 2);
+        const buttonsY = panelY + PAUSE_OVERLAY_OPTIONS_Y_OFFSET;
+
+        for (let i = 0; i < PAUSE_OVERLAY_OPTIONS.length; i++) {
+            const option = PAUSE_OVERLAY_OPTIONS[i];
+            const bx = buttonsStartX + (i * (PAUSE_OVERLAY_OPTION_WIDTH + PAUSE_OVERLAY_OPTION_GAP));
+            const by = buttonsY;
+            const buttonRect = {
+                x: bx,
+                y: by,
+                w: PAUSE_OVERLAY_OPTION_WIDTH,
+                h: PAUSE_OVERLAY_OPTION_HEIGHT,
+                action: option
+            };
+            this.pauseMenuButtonRects.push(buttonRect);
+
+            const isActiveControlsButton = option === PAUSE_OPTION_CONTROLS && this.showPauseControls;
+            ctx.fillStyle = isActiveControlsButton ? "#3f6bff" : "rgba(255, 255, 255, 0.14)";
+            ctx.fillRect(bx, by, PAUSE_OVERLAY_OPTION_WIDTH, PAUSE_OVERLAY_OPTION_HEIGHT);
+            ctx.strokeStyle = "rgba(255, 255, 255, 0.55)";
+            ctx.lineWidth = 1.5;
+            ctx.strokeRect(bx, by, PAUSE_OVERLAY_OPTION_WIDTH, PAUSE_OVERLAY_OPTION_HEIGHT);
+
+            ctx.fillStyle = "white";
+            ctx.font = '24px "Oxanium", sans-serif';
+            ctx.fillText(option, bx + (PAUSE_OVERLAY_OPTION_WIDTH / 2), by + (PAUSE_OVERLAY_OPTION_HEIGHT / 2));
+        }
+
+        if (this.showPauseControls) {
+            const controlsBoxX = panelX + PAUSE_OVERLAY_CONTROLS_BOX_MARGIN_X;
+            const controlsBoxY = panelY + PAUSE_OVERLAY_CONTROLS_BOX_Y_OFFSET;
+            const controlsBoxW = PAUSE_OVERLAY_PANEL_WIDTH - (PAUSE_OVERLAY_CONTROLS_BOX_MARGIN_X * 2);
+
+            ctx.fillStyle = "rgba(0, 0, 0, 0.45)";
+            ctx.fillRect(controlsBoxX, controlsBoxY, controlsBoxW, PAUSE_OVERLAY_CONTROLS_BOX_HEIGHT);
+            ctx.strokeStyle = "rgba(255, 255, 255, 0.35)";
+            ctx.strokeRect(controlsBoxX, controlsBoxY, controlsBoxW, PAUSE_OVERLAY_CONTROLS_BOX_HEIGHT);
+
+            ctx.fillStyle = "white";
+            ctx.font = '18px "Oxanium", sans-serif';
+            ctx.textAlign = "left";
+            ctx.textBaseline = "alphabetic";
+
+            let textY = controlsBoxY + PAUSE_OVERLAY_CONTROLS_TEXT_PADDING + 12;
+            const textX = controlsBoxX + PAUSE_OVERLAY_CONTROLS_TEXT_PADDING;
+            for (const line of PAUSE_CONTROLS_LINES) {
+                ctx.fillText(line, textX, textY);
+                textY += PAUSE_OVERLAY_CONTROLS_LINE_HEIGHT;
+            }
+        } else {
+            ctx.fillStyle = "rgba(255, 255, 255, 0.8)";
+            ctx.font = '20px "Oxanium", sans-serif';
+            ctx.textAlign = "center";
+            ctx.textBaseline = "middle";
+            ctx.fillText(
+                "Click Controls to view control details.",
+                panelX + (PAUSE_OVERLAY_PANEL_WIDTH / 2),
+                panelY + PAUSE_OVERLAY_CONTROLS_BOX_Y_OFFSET + 42
+            );
+        }
+
+        ctx.restore();
+    }
+
+    getPauseButtonRect() {
+        const canvas = this.game?.ctx?.canvas;
+        if (!canvas) return null;
+
+        return {
+            x: canvas.width - PAUSE_BUTTON_SIZE - PAUSE_BUTTON_MARGIN_RIGHT,
+            y: PAUSE_BUTTON_MARGIN_TOP,
+            w: PAUSE_BUTTON_SIZE,
+            h: PAUSE_BUTTON_SIZE
+        };
+    }
+
+    isPointInsideRect(x, y, rect) {
+        return x >= rect.x && x <= rect.x + rect.w && y >= rect.y && y <= rect.y + rect.h;
+    }
+
+    handlePauseOption(action) {
+        if (action === PAUSE_OPTION_RESUME) {
+            this.resumeGameplay();
+            return;
+        }
+
+        if (action === PAUSE_OPTION_RESTART) {
+            this.game.sceneManager.changeScene(new GameScene(this.game, this.levelBgImage));
+            return;
+        }
+
+        if (action === PAUSE_OPTION_CONTROLS) {
+            this.showPauseControls = !this.showPauseControls;
+        }
+    }
+
+    pauseGameplay() {
+        if (this.isPaused) return;
+
+        this.isPaused = true;
+        this.showPauseControls = false;
+        this.game.click = null;
+        this.game.rightclick = null;
+    }
+
+    resumeGameplay() {
+        if (!this.isPaused) return;
+
+        this.isPaused = false;
+        this.showPauseControls = false;
+        this.game.click = null;
+        this.game.rightclick = null;
     }
 }
 
