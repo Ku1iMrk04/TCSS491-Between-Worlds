@@ -5,7 +5,10 @@ import GruntEnemy from "../actors/gruntenemy.js";
 import ScientistEnemy from "../actors/scientistenemy.js";
 import GangsterEnemy from "../actors/gangsterenemy.js";
 import DeathScene from "./deathscene.js";
+import LevelCompleteScene from "./levelcompletescene.js";
 import MenuScene from "./menuscene.js";
+
+const ENEMY_COLLISION_LAYER = "enemy";
 
 
 class GameScene extends Scene {
@@ -15,11 +18,13 @@ class GameScene extends Scene {
         this.levelBgImage = levelBgImage;
 
         this.player = null;
+        this.levelCompleteTriggered = false;
     }
 
     enter() {
         // reset entities for a clean run
         this.game.entities = [];
+        this.levelCompleteTriggered = false;
 
         const tileMap = this.game.tileMap;
 
@@ -58,10 +63,35 @@ class GameScene extends Scene {
     }
 
     update() {
+        if (this.levelCompleteTriggered) {
+            return;
+        }
+
         // If player is removed (dies), go to death scene
         if (this.player && this.player.removeFromWorld) {
             this.game.sceneManager.changeScene(new DeathScene(this.game, this.levelBgImage));
+            return;
         }
+
+        // Level complete condition: all enemies are gone.
+        if (this.getAliveEnemyCount() === 0) {
+            this.levelCompleteTriggered = true;
+            this.game.sceneManager.changeScene(new LevelCompleteScene(
+                this.game,
+                this.levelBgImage,
+                () => new GameScene(this.game, this.levelBgImage),
+                () => new MenuScene(this.game, this.game.menuBgImage, this.levelBgImage)
+            ));
+        }
+    }
+
+    getAliveEnemyCount() {
+        return this.game.entities.filter(entity =>
+            entity &&
+            entity.collider &&
+            entity.collider.layer === ENEMY_COLLISION_LAYER &&
+            !entity.removeFromWorld
+        ).length;
     }
 
     draw(ctx) {
