@@ -8,6 +8,8 @@ import Roll from "../states/roll.js";
 import DashStrike from "../states/dashstrike.js";
 import DashStrikeAim from "../states/dashstrikeaim.js";
 import Fall from "../states/fall.js";
+import DreamSlash from "../states/dreamslash.js";
+import DreamSlashAim from "../states/dreamslashaim.js";
 
 import Animator from "../animation/animator.js";
 
@@ -47,6 +49,8 @@ class Player extends Actor {
         this.addState("attack", new Attack());
         this.addState("dashstrike", new DashStrike());
         this.addState("dashstrikeaim", new DashStrikeAim());
+        this.addState("dreamslash", new DreamSlash());
+        this.addState("dreamslashaim", new DreamSlashAim());
         this.changeState("idle");
 
         // Dash Strike cooldown
@@ -54,6 +58,17 @@ class Player extends Actor {
         this.dashStrikeCooldownTimer = 0;
         this.dashStrikeTarget = null;
         this.dashStrikeMaxRange = 300;
+
+        // Dream State
+        this.dreamMeter = 1;
+        this.dreamMeterMax = 1;
+        this.dreamMeterChargePerHit = 0.15;
+        this.inDreamState = false;
+        this.dreamDrainRate = 0.08;
+        this.dreamBlinkCost = 0.15;
+        this.dreamSpeedMultiplier = 1.5;
+        this.dreamSlashTargetX = 0;
+        this.dreamSlashTargetY = 0;
 
     }
 
@@ -69,21 +84,35 @@ class Player extends Actor {
             this.dashStrikeCooldownTimer -= dt;
         }
 
+        // Dream state drain
+        if (this.inDreamState) {
+            this.dreamMeter -= this.dreamDrainRate * dt;
+            if (this.dreamMeter <= 0) {
+                this.dreamMeter = 0;
+                this.inDreamState = false;
+                this.speed /= this.dreamSpeedMultiplier;
+            }
+        }
+
+        // Dream state activation (E key)
+        if (this.game.eKey && !this.inDreamState && this.dreamMeter >= this.dreamMeterMax) {
+            this.inDreamState = true;
+            this.speed *= this.dreamSpeedMultiplier;
+            this.game.eKey = false;
+        }
+
         // Track if player was grounded last frame
         const wasGrounded = this.grounded;
-
-        // Jump input (only when grounded and not attacking/rolling)
-        if (this.game.space && this.grounded && this.currentState !== this.states["attack"] && this.currentState !== this.states["roll"]) {
-            this.changeState("jump");
-        }
 
         this.dashStrikeTarget = this._findClosestEnemyInRange();
 
         const isAiming = this.currentState === this.states["dashstrikeaim"];
         const isDashing = this.currentState === this.states["dashstrike"];
+        const isBlinking = this.currentState === this.states["dreamslash"];
+        const isDreamAiming = this.currentState === this.states["dreamslashaim"];
 
-        // Block all other inputs while aiming or dashing
-        if (!isAiming && !isDashing) {
+        // Block all other inputs while aiming, dashing, or blinking
+        if (!isAiming && !isDashing && !isBlinking && !isDreamAiming) {
             // Jump input (only when grounded and not attacking/rolling)
             if (this.game.space && this.grounded && this.currentState !== this.states["attack"] && this.currentState !== this.states["roll"]) {
                 this.changeState("jump");
@@ -96,12 +125,16 @@ class Player extends Actor {
 
             // Attack input with left click (can attack mid-air)
             if (this.game.click && this.currentState !== this.states["attack"] && this.currentState !== this.states["roll"]) {
-                this.changeState("attack");
-                this.game.click = null;  // Reset click to prevent continuous attacking
+                if (this.inDreamState) {
+                    this.changeState("dreamslashaim");
+                } else {
+                    this.changeState("attack");
+                }
+                this.game.click = null;
             }
 
-            // Dash Strike input - right mouse button pressed down
-            if (this.game.rightclick) {
+            // Dash Strike input - right mouse button (disabled in dream state)
+            if (!this.inDreamState && this.game.rightclick) {
                 if (this.dashStrikeCooldownTimer <= 0
                     && this.currentState !== this.states["roll"]
                     && this.dashStrikeTarget) {
@@ -343,6 +376,11 @@ class Player extends Actor {
         // Draw skill shot bar during aiming
         if (this.currentState === this.states["dashstrikeaim"]) {
             this._drawSkillShotBar(ctx);
+        }
+
+        // Draw dream slash aim line
+        if (this.currentState === this.states["dreamslashaim"]) {
+            this.states["dreamslashaim"].drawAimLine(ctx);
         }
     }
 

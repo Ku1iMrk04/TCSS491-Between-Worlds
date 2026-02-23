@@ -7,6 +7,7 @@ import GangsterEnemy from "../actors/gangsterenemy.js";
 import DeathScene from "./deathscene.js";
 import LevelCompleteScene from "./levelcompletescene.js";
 import MenuScene from "./menuscene.js";
+import Camera from "../camera.js";
 
 const ENEMY_COLLISION_LAYER = "enemy";
 const PAUSE_BUTTON_SIZE = 42;
@@ -68,6 +69,15 @@ class GameScene extends Scene {
 
         const tileMap = this.game.tileMap;
 
+        // Initialize camera based on map size
+        // Viewport size is 960x540 (the scaled-down canvas size)
+        const viewportWidth = 960;
+        const viewportHeight = 540;
+        const worldWidth = tileMap.width * tileMap.tileWidth;
+        const worldHeight = tileMap.height * tileMap.tileHeight;
+
+        this.game.camera = new Camera(viewportWidth, viewportHeight, worldWidth, worldHeight);
+
         // Spawn player from map data
         const playerSpawn = tileMap.getPlayerSpawn();
         if (playerSpawn) {
@@ -77,6 +87,9 @@ class GameScene extends Scene {
             this.player = new Player(this.game, 300, 750);
         }
         this.game.addEntity(this.player);
+
+        // Set camera to follow player
+        this.game.camera.follow(this.player);
 
         // Spawn enemies from map data
         const enemySpawns = tileMap.getEnemySpawns();
@@ -171,11 +184,26 @@ class GameScene extends Scene {
         ctx.mozImageSmoothingEnabled = false;
         ctx.msImageSmoothingEnabled = false;
 
-        // Scale factor: map is 960x640, canvas is 1920x1080
+        // Scale factor: canvas is 1920x1080, viewport is 960x540
         const scale = 2;
 
         ctx.save();
         ctx.scale(scale, scale);
+
+        // Apply camera transform
+        if (this.game.camera) {
+            this.game.camera.applyTransform(ctx);
+        }
+
+        // Dream state background overlay (drawn behind tilemap in world space)
+        if (this.player && this.player.inDreamState) {
+            // TODO: Replace with actual dream dimension tilemap/art
+            ctx.save();
+            ctx.fillStyle = "rgba(100, 0, 150, 0.15)";
+            const cam = this.game.camera;
+            ctx.fillRect(cam.x, cam.y, cam.viewportWidth, cam.viewportHeight);
+            ctx.restore();
+        }
 
         // Draw tilemap background layer first
         if (this.game.tileMap) {
@@ -194,10 +222,11 @@ class GameScene extends Scene {
 
         ctx.restore();
 
-        // Then draw HUD on top (not scaled)
+        // Then draw HUD on top (not scaled, not affected by camera)
         this.drawLevelLabel(ctx);
         this.drawPlayerHealthBar(ctx);
         this.drawDashStrikeCooldown(ctx);
+        this.drawDreamMeter(ctx);
     }
 
     drawOverlay(ctx) {
@@ -481,6 +510,62 @@ class GameScene extends Scene {
         this.showPauseControls = false;
         this.game.click = null;
         this.game.rightclick = null;
+    drawDreamMeter(ctx) {
+        if (!this.player) return;
+
+        const meter = this.player.dreamMeter;
+        const max = this.player.dreamMeterMax;
+        const active = this.player.inDreamState;
+
+        const x = 48;
+        const y = 320;
+        const w = 660;
+        const h = 36;
+
+        const ratio = max > 0 ? Math.min(meter / max, 1) : 0;
+        const fillW = Math.floor(w * ratio);
+
+        ctx.save();
+
+        // Label
+        ctx.fillStyle = active ? "#c77dff" : "#aaa";
+        ctx.font = "36px Arial";
+        ctx.textBaseline = "bottom";
+        ctx.fillText(active ? "DREAM ACTIVE" : "Dream", x, y - 8);
+
+        // "Press E" hint when full and not active
+        if (!active && ratio >= 1) {
+            ctx.fillStyle = "#c77dff";
+            ctx.font = "28px Arial";
+            ctx.fillText("  [E]", x + ctx.measureText("Dream").width, y - 10);
+        }
+
+        // Bar background
+        ctx.fillStyle = "#333";
+        ctx.fillRect(x, y, w, h);
+
+        // Fill - purple gradient
+        if (fillW > 0) {
+            const grad = ctx.createLinearGradient(x, y, x + fillW, y);
+            grad.addColorStop(0, "#7b2ff7");
+            grad.addColorStop(1, "#c77dff");
+            ctx.fillStyle = grad;
+            ctx.fillRect(x, y, fillW, h);
+        }
+
+        // Pulse glow when full and not active
+        if (!active && ratio >= 1) {
+            const pulse = 0.3 + 0.3 * Math.sin(Date.now() / 200);
+            ctx.fillStyle = `rgba(199, 125, 255, ${pulse})`;
+            ctx.fillRect(x, y, w, h);
+        }
+
+        // Border
+        ctx.strokeStyle = active ? "#c77dff" : "#666";
+        ctx.lineWidth = 2;
+        ctx.strokeRect(x, y, w, h);
+
+        ctx.restore();
     }
 }
 
