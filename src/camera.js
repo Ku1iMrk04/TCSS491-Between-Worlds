@@ -1,5 +1,6 @@
 /**
- * Camera - Handles viewport tracking and world-to-screen transformations
+ * Camera - Handles viewport tracking with look-ahead, vertical ground snapping,
+ * and screen shake (Katana Zero-inspired)
  */
 class Camera {
     /**
@@ -21,12 +22,28 @@ class Camera {
         // Target to follow (usually the player)
         this.target = null;
 
-        // Smoothing factor for camera movement (0 = instant, 1 = very smooth)
-        this.smoothing = 0.1;
+        // Base smoothing for horizontal follow
+        this.smoothing = 0.15;
 
-        // Deadzone - area in center where camera doesn't move
-        this.deadzoneWidth = viewportWidth * 0.3;
-        this.deadzoneHeight = viewportHeight * 0.3;
+        // --- Look-ahead ---
+        this.lookAheadX = 0;
+        this.lookAheadAmount = 80;
+        this.lookAheadSmoothing = 0.03;
+        this.lastFacing = null;
+        this.facingChangeDelay = 0.2; // seconds to wait before shifting after a direction change
+        this.facingChangeTimer = 0;
+
+        // --- Vertical ground snapping ---
+        this.lockedY = null;
+        this.verticalLockSmoothing = 0.04;
+        this.verticalUnlockThreshold = 150;
+
+        // --- Screen shake ---
+        this.shakeIntensity = 0;
+        this.shakeDuration = 0;
+        this.shakeTimer = 0;
+        this.shakeOffsetX = 0;
+        this.shakeOffsetY = 0;
     }
 
     /**
@@ -34,21 +51,75 @@ class Camera {
      */
     follow(entity) {
         this.target = entity;
+        // Initialize lockedY to current target position
+        if (entity) {
+            this.lockedY = entity.y + (entity.height || 0) / 2;
+        }
+    }
+
+    /**
+     * Trigger screen shake
+     * @param {number} intensity - Max pixel offset
+     * @param {number} duration - Duration in seconds
+     */
+    shake(intensity, duration) {
+        this.shakeIntensity = intensity;
+        this.shakeDuration = duration;
+        this.shakeTimer = duration;
     }
 
     /**
      * Update camera position to follow target
+     * @param {number} dt - Delta time in seconds
      */
-    update() {
+    update(dt) {
         if (!this.target) return;
 
-        // Get target position (center of target)
+        // --- Look-ahead based on facing direction ---
+        // Delay the look-ahead shift when changing direction to avoid jerky camera
+        const currentFacing = this.target.facing;
+        if (currentFacing !== this.lastFacing) {
+            this.facingChangeTimer = this.facingChangeDelay;
+            this.lastFacing = currentFacing;
+        }
+
+        if (this.facingChangeTimer > 0) {
+            this.facingChangeTimer -= dt;
+        } else {
+            const targetLookAhead = currentFacing === "left"
+                ? -this.lookAheadAmount
+                : this.lookAheadAmount;
+            this.lookAheadX += (targetLookAhead - this.lookAheadX) * this.lookAheadSmoothing;
+        }
+
+        // Get target center X
         const targetCenterX = this.target.x + (this.target.width || 0) / 2;
+
+        // Desired X with look-ahead offset
+        let desiredX = targetCenterX + this.lookAheadX - this.viewportWidth / 2;
+
+        // --- Vertical ground snapping ---
         const targetCenterY = this.target.y + (this.target.height || 0) / 2;
 
-        // Calculate desired camera position (center target in viewport)
-        let desiredX = targetCenterX - this.viewportWidth / 2;
-        let desiredY = targetCenterY - this.viewportHeight / 2;
+        // Update locked Y when grounded
+        if (this.target.grounded) {
+            this.lockedY = targetCenterY;
+        }
+
+        // Use locked Y for camera, but follow actual Y if player is too far away
+        let cameraTargetY = this.lockedY;
+        if (this.lockedY !== null) {
+            const distFromLock = Math.abs(targetCenterY - this.lockedY);
+            if (distFromLock > this.verticalUnlockThreshold) {
+                // Blend toward actual position when far from locked Y
+                cameraTargetY = this.lockedY + (targetCenterY - this.lockedY) *
+                    ((distFromLock - this.verticalUnlockThreshold) / distFromLock);
+            }
+        } else {
+            cameraTargetY = targetCenterY;
+        }
+
+        let desiredY = cameraTargetY - this.viewportHeight / 2;
 
         // Clamp camera to world bounds
         desiredX = Math.max(0, Math.min(desiredX, this.worldWidth - this.viewportWidth));
@@ -56,18 +127,33 @@ class Camera {
 
         // Smooth camera movement
         this.x += (desiredX - this.x) * this.smoothing;
-        this.y += (desiredY - this.y) * this.smoothing;
+        this.y += (desiredY - this.y) * this.verticalLockSmoothing;
 
         // Clamp again to prevent floating point drift
         this.x = Math.max(0, Math.min(this.x, this.worldWidth - this.viewportWidth));
         this.y = Math.max(0, Math.min(this.y, this.worldHeight - this.viewportHeight));
+
+        // --- Screen shake ---
+        if (this.shakeTimer > 0) {
+            this.shakeTimer -= dt;
+            const progress = Math.max(0, this.shakeTimer / this.shakeDuration);
+            const currentIntensity = this.shakeIntensity * progress;
+            this.shakeOffsetX = (Math.random() * 2 - 1) * currentIntensity;
+            this.shakeOffsetY = (Math.random() * 2 - 1) * currentIntensity;
+        } else {
+            this.shakeOffsetX = 0;
+            this.shakeOffsetY = 0;
+        }
     }
 
     /**
      * Apply camera transform to canvas context
      */
     applyTransform(ctx) {
-        ctx.translate(-this.x, -this.y);
+        ctx.translate(
+            -(this.x + this.shakeOffsetX),
+            -(this.y + this.shakeOffsetY)
+        );
     }
 
     /**

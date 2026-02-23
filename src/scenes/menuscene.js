@@ -11,6 +11,8 @@ class MenuScene extends Scene {
 
         this.showManual = false;
         this.buttonRects = [];
+        this.hoveredIndex = -1;
+        this.hoverScales = this.options.map(() => 0); // 0 = normal, 1 = fully hovered
     }
 
     onKeyDown(event) {
@@ -70,27 +72,85 @@ class MenuScene extends Scene {
 
         // Title
         ctx.fillStyle = "white";
-        ctx.font = '48px "Orbitron", sans-serif';
-        ctx.fillText("BETWEEN WORLDS", centerX, 100);
+        ctx.font = '64px "Orbitron", sans-serif';
+        ctx.fillText("BETWEEN WORLDS", centerX, h / 2 - 120);
 
         // Menu options
-        ctx.font = '26px "Oxanium", sans-serif';
-        const startY = 190;
-        const lineH = 44;
+        ctx.font = '36px "Oxanium", sans-serif';
+        const startY = h / 2 - 20;
+        const lineH = 80;
+        const btnW = 360;
+        const btnH = 60;
 
         this.buttonRects = [];
 
+        // Detect which button the mouse is hovering over
+        const mouse = this.game.mouse;
+        this.hoveredIndex = -1;
+        if (mouse) {
+            const mx = mouse.x;
+            const my = mouse.y;
+            for (let i = 0; i < this.options.length; i++) {
+                const y = startY + i * lineH;
+                const bx = centerX - btnW / 2;
+                const by = y - btnH / 2 - 8;
+                if (mx >= bx && mx <= bx + btnW && my >= by && my <= by + btnH) {
+                    this.hoveredIndex = i;
+                    this.selectedIndex = i;
+                }
+            }
+        }
+
+        // Animate hover scales smoothly
+        const speed = 0.1;
+        for (let i = 0; i < this.options.length; i++) {
+            const target = (i === this.hoveredIndex || i === this.selectedIndex) ? 1 : 0;
+            this.hoverScales[i] += (target - this.hoverScales[i]) * speed;
+        }
+
         for (let i = 0; i < this.options.length; i++) {
             const y = startY + i * lineH;
+            const btnX = centerX - btnW / 2;
+            const btnY = y - btnH / 2 - 8;
+            const t = this.hoverScales[i];
+            const isHovered = i === this.hoveredIndex;
+            const isSelected = i === this.selectedIndex;
 
-            ctx.fillStyle = (i === this.selectedIndex) ? "rgba(255,255,255,1)" : "rgba(255,255,255,0.65)";
-            ctx.fillText(this.options[i], centerX, y);
+            // Smooth scale: grows slightly on hover
+            const scale = 1 + t * 0.06;
 
-            if (i === this.selectedIndex) {
-                ctx.fillRect(centerX - 140, y - 18, 10, 10);
+            ctx.save();
+            ctx.translate(centerX, btnY + btnH / 2);
+            ctx.scale(scale, scale);
+            ctx.translate(-centerX, -(btnY + btnH / 2));
+
+            // Button background with animated opacity
+            const bgAlpha = 0.08 + t * 0.14;
+            const borderAlpha = 0.3 + t * 0.5;
+            ctx.fillStyle = `rgba(255,255,255,${bgAlpha})`;
+            ctx.strokeStyle = `rgba(255,255,255,${borderAlpha})`;
+            ctx.lineWidth = 2;
+            ctx.beginPath();
+            ctx.roundRect(btnX, btnY, btnW, btnH, 8);
+            ctx.fill();
+            ctx.stroke();
+
+            // Glow effect on hover
+            if (t > 0.01) {
+                ctx.shadowColor = "rgba(255,255,255," + (t * 0.4) + ")";
+                ctx.shadowBlur = t * 15;
             }
 
-            this.buttonRects.push({ x: centerX - 120, y: y - 30, w: 240, h: 40 });
+            // Draw text with animated opacity
+            const textAlpha = 0.65 + t * 0.35;
+            ctx.fillStyle = `rgba(255,255,255,${textAlpha})`;
+            ctx.shadowColor = "transparent";
+            ctx.shadowBlur = 0;
+            ctx.fillText(this.options[i], centerX, y);
+
+            ctx.restore();
+
+            this.buttonRects.push({ x: btnX, y: btnY, w: btnW, h: btnH });
         }
 
         // Manual display

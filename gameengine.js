@@ -41,9 +41,11 @@ export class GameEngine {
         this.timeScale = 1;
         this.rawClockTick = 0;
 
-        // Right mouse button tracking
+        // Mouse button tracking
         this.rightMouseDown = false;
         this.rightMouseReleased = false;
+        this.leftMouseDown = false;
+        this.leftMouseReleased = false;
 
         // Options and the Details
         this.options = options || {
@@ -67,10 +69,15 @@ export class GameEngine {
     };
 
     startInput() {
-        const getXandY = e => ({
-            x: e.clientX - this.ctx.canvas.getBoundingClientRect().left,
-            y: e.clientY - this.ctx.canvas.getBoundingClientRect().top
-        });
+        const getXandY = e => {
+            const rect = this.ctx.canvas.getBoundingClientRect();
+            const scaleX = this.ctx.canvas.width / rect.width;
+            const scaleY = this.ctx.canvas.height / rect.height;
+            return {
+                x: (e.clientX - rect.left) * scaleX,
+                y: (e.clientY - rect.top) * scaleY
+            };
+        };
         
         this.ctx.canvas.addEventListener("mousemove", e => {
             this.mouse = getXandY(e);
@@ -83,6 +90,8 @@ export class GameEngine {
                     console.log("MOUSEDOWN", pos);
                 }
                 this.click = pos;
+                this.leftMouseDown = true;
+                this.leftMouseReleased = false;
 
                 // scene click forwarding
                 if (this.sceneManager) {
@@ -100,7 +109,10 @@ export class GameEngine {
         });
 
         this.ctx.canvas.addEventListener("mouseup", e => {
-            if (e.button === 2) {
+            if (e.button === 0) {
+                this.leftMouseDown = false;
+                this.leftMouseReleased = true;
+            } else if (e.button === 2) {
                 this.rightMouseDown = false;
                 this.rightMouseReleased = true;
             }
@@ -139,6 +151,9 @@ export class GameEngine {
                 case "ShiftLeft":
                     this.shift = true;
                     break;
+                case "KeyE":
+                    this.eKey = true;
+                    break;
             }
         });
 
@@ -170,6 +185,9 @@ export class GameEngine {
                     break;
                 case "ShiftLeft":
                     this.shift = false;
+                    break;
+                case "KeyE":
+                    this.eKey = false;
                     break;
             }
         });
@@ -238,7 +256,7 @@ export class GameEngine {
 
         // Update camera after entities have moved
         if (this.camera) {
-            this.camera.update();
+            this.camera.update(this.clockTick);
         }
 
         // Check collisions after all entities have moved
