@@ -52,8 +52,8 @@ class Actor {
     }
 
     takeDamage(amount) {
-        // Only take damage if cooldown has expired
-        if (this.damageCooldownTimer <= 0) {
+        // Only take damage if not invulnerable and cooldown has expired
+        if (!this.invulnerable && this.damageCooldownTimer <= 0) {
             this.health -= amount;
             this.damageCooldownTimer = this.damageCooldown; // Start cooldown
 
