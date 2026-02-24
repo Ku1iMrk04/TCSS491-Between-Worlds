@@ -20,8 +20,8 @@ class Actor {
 
 
         // Physics properties
-        this.gravity = 800;  // Pixels per second squared
-        this.terminalVelocity = 600;  // Max falling speed
+        this.gravity = 1400;  // Pixels per second squared
+        this.terminalVelocity = 1800;  // Max falling speed
         this.grounded = false;
 
         // Combat properties
