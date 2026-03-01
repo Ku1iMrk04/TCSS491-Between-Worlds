@@ -12,8 +12,8 @@ class Roll extends State {
     enter() {
         const entity = this.myEntity;
 
-        // Set invulnerability
-        entity.invulnerable = true;
+        // Phase through enemies during roll
+        entity.collider.layer = "player_rolling";
 
         // Set roll duration
         this.timeRemaining = this.rollDuration;
@@ -58,8 +58,8 @@ class Roll extends State {
     exit() {
         const entity = this.myEntity;
 
-        // Remove invulnerability
-        entity.invulnerable = false;
+        // Restore normal collision layer
+        entity.collider.layer = "player";
 
         // Stop horizontal movement
         entity.vx = 0;

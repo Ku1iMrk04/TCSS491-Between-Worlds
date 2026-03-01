@@ -69,6 +69,8 @@ class Player extends Actor {
         this.dreamSpeedMultiplier = 1.5;
         this.dreamSlashTargetX = 0;
         this.dreamSlashTargetY = 0;
+        this.dreamSlashCooldown = 0.35;
+        this.dreamSlashCooldownTimer = 0;
 
     }
 
@@ -78,10 +80,13 @@ class Player extends Actor {
     }
 
     update() {
-        // Dash Strike cooldown tick and target scanning
+        // Cooldown ticks
         const dt = this.game.clockTick || 0;
         if (this.dashStrikeCooldownTimer > 0) {
             this.dashStrikeCooldownTimer -= dt;
+        }
+        if (this.dreamSlashCooldownTimer > 0) {
+            this.dreamSlashCooldownTimer -= dt;
         }
 
         // Dream state drain
@@ -125,7 +130,7 @@ class Player extends Actor {
 
             // Attack input with left click (can attack mid-air)
             if (this.game.click && this.currentState !== this.states["attack"] && this.currentState !== this.states["roll"]) {
-                if (this.inDreamState) {
+                if (this.inDreamState && this.dreamSlashCooldownTimer <= 0) {
                     this.changeState("dreamslashaim");
                 } else {
                     this.changeState("attack");
@@ -133,16 +138,7 @@ class Player extends Actor {
                 this.game.click = null;
             }
 
-            // Dash Strike input - right mouse button (disabled in dream state)
-            if (!this.inDreamState && this.game.rightclick) {
-                if (this.dashStrikeCooldownTimer <= 0
-                    && this.currentState !== this.states["roll"]
-                    && this.dashStrikeTarget) {
-                    this.dashStrikeCooldownTimer = this.dashStrikeCooldown;
-                    this.changeState("dashstrikeaim");
-                }
-                this.game.rightclick = null;
-            }
+
         }
 
         // Track previous Y to support swept landing checks and prevent floor tunneling.

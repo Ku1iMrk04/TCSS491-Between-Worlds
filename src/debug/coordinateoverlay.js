@@ -52,8 +52,8 @@ export class CoordinateOverlay {
         const boxWidth = textWidth + padding * 2;
         const boxHeight = fontSize + padding * 2;
 
-        // Position at bottom-left
-        const x = this.position.x;
+        // Position at bottom-right
+        const x = ctx.canvas.width - boxWidth - 10;
         const y = ctx.canvas.height - boxHeight - 10;
 
         // Semi-transparent black background
@@ -72,6 +72,6 @@ export class CoordinateOverlay {
         // Small hint text
         ctx.font = '10px Arial';
         ctx.fillStyle = 'rgba(255, 255, 255, 0.5)';
-        ctx.fillText('Press C to toggle', x + padding, y - 5);
+        ctx.fillText('Press C to toggle', x + padding, y - 4);
     }
 }

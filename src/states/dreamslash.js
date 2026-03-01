@@ -96,6 +96,9 @@ class DreamSlash extends State {
         entity.vx = 0;
         entity.vy = 0;
 
+        // Apply cooldown before next dream slash can be triggered
+        entity.dreamSlashCooldownTimer = entity.dreamSlashCooldown;
+
         // Exit dream state if meter is depleted
         if (entity.dreamMeter <= 0 && entity.inDreamState) {
             entity.inDreamState = false;
