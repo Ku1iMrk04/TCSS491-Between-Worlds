@@ -14,6 +14,10 @@ class AttackHitbox {
         this.damage = options.damage || 10;
         this.knockback = options.knockback || 100;
 
+        // Optional normalized direction vector {x, y} for 8-directional attacks.
+        // If omitted, falls back to owner.facing (left/right).
+        this.attackDir = options.attackDir || null;
+
         // Position offset from owner (e.g., in front of player)
         this.offsetX = options.offset?.x || 0;
         this.offsetY = options.offset?.y || 0;
@@ -25,20 +29,19 @@ class AttackHitbox {
             isTrigger: true  // Pass-through, doesn't push entities
         });
 
-        // Create animator for attack slash visual effect
+        // Create slash animator for all attacks.
+        // Directional attacks always use "right" facing so canvas rotation handles the direction.
         if (owner.animator && owner.game.assetManager) {
             this.animator = new Animator("zero", owner.game.assetManager);
             this.animator.setScale(owner.scale || 3);
-            this.animator.setAnimation("attack_slash", owner.facing, false);
+            const slashFacing = this.attackDir ? "right" : owner.facing;
+            this.animator.setAnimation("attack_slash", slashFacing, false);
         }
 
-        // Current position (account for facing direction)
-        this.y = owner.y + this.offsetY;
-        if (owner.facing === "left") {
-            this.x = owner.x - this.collider.size.width - this.offsetX;
-        } else {
-            this.x = owner.x + owner.width + this.offsetX;
-        }
+        // Current position
+        const pos = this._computePosition();
+        this.x = pos.x;
+        this.y = pos.y;
 
         // Track what we've already hit this attack (prevent multi-hit)
         this.hitEntities = new Set();
@@ -48,6 +51,33 @@ class AttackHitbox {
 
         this.removeFromWorld = false;
         this.name = "AttackHitbox";
+    }
+
+    /**
+     * Compute hitbox top-left position based on attackDir or owner.facing.
+     */
+    _computePosition() {
+        const owner = this.owner;
+        const hw = this.collider.size.width / 2;
+        const hh = this.collider.size.height / 2;
+
+        if (this.attackDir) {
+            // Place hitbox so its near face touches the player's edge in the attack direction
+            const cx = owner.x + owner.width / 2;
+            const cy = owner.y + owner.height / 2;
+            return {
+                x: cx + this.attackDir.x * (owner.width / 2 + hw) - hw,
+                y: cy + this.attackDir.y * (owner.height / 2 + hh) - hh
+            };
+        }
+
+        // Legacy: position based on facing direction
+        return {
+            x: owner.facing === "left"
+                ? owner.x - this.collider.size.width - this.offsetX
+                : owner.x + owner.width + this.offsetX,
+            y: owner.y + this.offsetY
+        };
     }
 
     /**
@@ -68,20 +98,16 @@ class AttackHitbox {
         const dt = this.game.clockTick;
 
         // Follow the owner's position
-        this.y = this.owner.y + this.offsetY;
+        const pos = this._computePosition();
+        this.x = pos.x;
+        this.y = pos.y;
 
-        // Position hitbox based on facing direction
-        if (this.owner.facing === "left") {
-            this.x = this.owner.x - this.collider.size.width - this.offsetX;
-        } else {
-            this.x = this.owner.x + this.owner.width + this.offsetX;
-        }
-
-        // Update slash animation
+        // Update slash animation (horizontal attacks only)
         if (this.animator) {
             this.animator.update(dt);
-            // Update direction if owner changes facing mid-attack
-            this.animator.setDirection(this.owner.facing);
+            if (!this.attackDir) {
+                this.animator.setDirection(this.owner.facing);
+            }
         }
 
         // Lifetime logic
@@ -94,26 +120,38 @@ class AttackHitbox {
     draw(ctx, game) {
         // Draw the attack slash animation
         if (this.animator) {
-            let slashX, slashY;
-
-            // Get the attack slash sprite dimensions (88x28 at scale)
+            // Slash sprite dimensions: 88x28 at owner scale
             const slashWidth = 88 * this.owner.scale;
+            const slashHeight = 28 * this.owner.scale;
 
-            // Align attack sprite's top corner with player's top corner
-            slashY = this.owner.y; // Top aligned with player
+            if (this.attackDir) {
+                const cx = this.owner.x + this.owner.width / 2;
+                const cy = this.owner.y + this.owner.height / 2;
 
-            if (this.owner.facing === "left") {
-                // Attack sprite's top-RIGHT corner aligns with player's top-RIGHT corner
-                // Player's right edge is at: owner.x + owner.width
-                // Attack sprite's right edge should be at same position
-                // So left edge is at: (owner.x + owner.width) - slashWidth
-                slashX = this.owner.x + this.owner.width - slashWidth;
+                ctx.save();
+                ctx.translate(cx, cy);
+
+                if (this.attackDir.x < 0) {
+                    // Left-facing: mirror on X then rotate by the reflected angle
+                    // so the sprite stays right-side up
+                    ctx.scale(-1, 1);
+                    ctx.rotate(Math.atan2(this.attackDir.y, -this.attackDir.x));
+                } else {
+                    // Right-facing: just rotate
+                    ctx.rotate(Math.atan2(this.attackDir.y, this.attackDir.x));
+                }
+
+                // Draw from the player's near edge outward, top-aligned with player top (matching legacy)
+                this.animator.draw(ctx, -this.owner.width / 2, -this.owner.height / 2);
+                ctx.restore();
             } else {
-                // Attack sprite's top-LEFT corner aligns with player's top-LEFT corner
-                slashX = this.owner.x;
+                // Legacy left/right: align sprite's near edge with player's near edge
+                const slashY = this.owner.y;
+                const slashX = this.owner.facing === "left"
+                    ? this.owner.x + this.owner.width - slashWidth
+                    : this.owner.x;
+                this.animator.draw(ctx, slashX, slashY);
             }
-
-            this.animator.draw(ctx, slashX, slashY);
         }
 
         // Draw hitbox in debug mode

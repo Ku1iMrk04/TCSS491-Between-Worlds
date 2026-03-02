@@ -35,7 +35,7 @@ class Player extends Actor {
         this.setCollider({ layer: "player" });
         this.animator = new Animator("zero", this.game.assetManager)
         this.animator.setScale(this.scale);
-        this.speed = 200;
+        this.speed = 275;
         this.currentAnimState = "idle";  // Track current animation state
         this.wasFalling = false;  // Track if player was falling (to prevent slope snapping mid-air)
         this.coyoteTime = 0;  // Frames since leaving ground (for coyote time)
@@ -69,6 +69,8 @@ class Player extends Actor {
         this.dreamSpeedMultiplier = 1.5;
         this.dreamSlashTargetX = 0;
         this.dreamSlashTargetY = 0;
+        this.dreamSlashCooldown = 0.35;
+        this.dreamSlashCooldownTimer = 0;
 
     }
 
@@ -78,10 +80,13 @@ class Player extends Actor {
     }
 
     update() {
-        // Dash Strike cooldown tick and target scanning
+        // Cooldown ticks
         const dt = this.game.clockTick || 0;
         if (this.dashStrikeCooldownTimer > 0) {
             this.dashStrikeCooldownTimer -= dt;
+        }
+        if (this.dreamSlashCooldownTimer > 0) {
+            this.dreamSlashCooldownTimer -= dt;
         }
 
         // Dream state drain
@@ -125,7 +130,7 @@ class Player extends Actor {
 
             // Attack input with left click (can attack mid-air)
             if (this.game.click && this.currentState !== this.states["attack"] && this.currentState !== this.states["roll"]) {
-                if (this.inDreamState) {
+                if (this.inDreamState && this.dreamSlashCooldownTimer <= 0) {
                     this.changeState("dreamslashaim");
                 } else {
                     this.changeState("attack");
@@ -133,16 +138,7 @@ class Player extends Actor {
                 this.game.click = null;
             }
 
-            // Dash Strike input - right mouse button (disabled in dream state)
-            if (!this.inDreamState && this.game.rightclick) {
-                if (this.dashStrikeCooldownTimer <= 0
-                    && this.currentState !== this.states["roll"]
-                    && this.dashStrikeTarget) {
-                    this.dashStrikeCooldownTimer = this.dashStrikeCooldown;
-                    this.changeState("dashstrikeaim");
-                }
-                this.game.rightclick = null;
-            }
+
         }
 
         // Track previous Y to support swept landing checks and prevent floor tunneling.
@@ -367,7 +363,37 @@ class Player extends Actor {
     }
 
     draw(ctx, game) {
-        this.animator.draw(ctx, this.x, this.y);
+        const attackState = this.states["attack"];
+        const isAttacking = this.currentState === attackState;
+
+        if (isAttacking) {
+            const dx = attackState.attackDirX;
+            const dy = attackState.attackDirY;
+            const cx = this.x + this.width / 2;
+            const cy = this.y + this.height / 2;
+
+            ctx.save();
+            ctx.translate(cx, cy);
+
+            if (dx < 0) {
+                // Mirror on X then rotate by reflected angle (same as slash logic)
+                ctx.scale(-1, 1);
+                ctx.rotate(Math.atan2(dy, -dx));
+            } else {
+                ctx.rotate(Math.atan2(dy, dx));
+            }
+
+            // Temporarily force "right" so the animator doesn't apply its own
+            // internal flip — our external transform already handles direction.
+            const prevDir = this.animator.direction;
+            this.animator.direction = "right";
+            this.animator.draw(ctx, -this.width / 2, -this.height / 2);
+            this.animator.direction = prevDir;
+
+            ctx.restore();
+        } else {
+            this.animator.draw(ctx, this.x, this.y);
+        }
 
         // Draw crosshair on targeted enemy when ability is ready
         if (this.dashStrikeTarget && this.dashStrikeCooldownTimer <= 0
