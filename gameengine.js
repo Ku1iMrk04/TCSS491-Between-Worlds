@@ -43,8 +43,6 @@ export class GameEngine {
         this.rawClockTick = 0;
 
         // Mouse button tracking
-        this.rightMouseDown = false;
-        this.rightMouseReleased = false;
         this.leftMouseDown = false;
         this.leftMouseReleased = false;
 
@@ -104,9 +102,6 @@ export class GameEngine {
                 if (this.sceneManager) {
                     this.sceneManager.onClick(pos.x, pos.y);
                 }
-            } else if (e.button === 2) {
-                this.rightMouseDown = true;
-                this.rightclick = pos;
             }
         });
 
@@ -119,9 +114,6 @@ export class GameEngine {
             if (e.button === 0) {
                 this.leftMouseDown = false;
                 this.leftMouseReleased = true;
-            } else if (e.button === 2) {
-                this.rightMouseDown = false;
-                this.rightMouseReleased = true;
             }
         });
 
