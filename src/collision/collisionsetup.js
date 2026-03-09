@@ -37,8 +37,8 @@ export function setupCollisions(collisionManager) {
                 hitbox.owner.game.camera.shake(5, 0.15);
             }
 
-            // Charge dream meter on hit
-            if (hitbox.owner.dreamMeter !== undefined) {
+            // Charge dream meter on hit (only outside dream state)
+            if (hitbox.owner.dreamMeter !== undefined && !hitbox.owner.inDreamState) {
                 hitbox.owner.dreamMeter = Math.min(
                     hitbox.owner.dreamMeterMax,
                     hitbox.owner.dreamMeter + hitbox.owner.dreamMeterChargePerHit
