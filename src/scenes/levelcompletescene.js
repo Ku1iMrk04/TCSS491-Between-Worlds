@@ -1,16 +1,17 @@
 import Scene from "./scene.js";
 
 class LevelCompleteScene extends Scene {
-    constructor(game, levelBgImage, onRestart, onMainMenu) {
+    constructor(game, levelBgImage, levelIndex, onRestart, onNextLevel, onMainMenu) {
         super(game);
 
         this.levelBgImage = levelBgImage;
+        this.levelIndex = levelIndex;
         this.onRestart = onRestart;
+        this.onNextLevel = onNextLevel;
         this.onMainMenu = onMainMenu;
-        this.options = ["Restart", "Next Level", "Main Menu"];
+        this.options = onNextLevel ? ["Restart", "Next Level", "Main Menu"] : ["Restart", "Main Menu"];
         this.selectedIndex = 0;
 
-        this.showConstructionPopup = false;
         this.buttonRects = [];
     }
 
@@ -34,13 +35,16 @@ class LevelCompleteScene extends Scene {
     }
 
     activateSelection() {
-        if (this.selectedIndex === 0) {
+        const option = this.options[this.selectedIndex];
+        if (option === "Restart") {
             if (typeof this.onRestart === "function") {
                 this.game.sceneManager.changeScene(this.onRestart());
             }
-        } else if (this.selectedIndex === 1) {
-            this.showConstructionPopup = !this.showConstructionPopup;
-        } else if (this.selectedIndex === 2) {
+        } else if (option === "Next Level") {
+            if (typeof this.onNextLevel === "function") {
+                this.game.sceneManager.changeScene(this.onNextLevel());
+            }
+        } else if (option === "Main Menu") {
             if (typeof this.onMainMenu === "function") {
                 this.game.sceneManager.changeScene(this.onMainMenu());
             }
@@ -71,7 +75,7 @@ class LevelCompleteScene extends Scene {
         ctx.textBaseline = "middle";
         ctx.fillStyle = "white";
         ctx.font = '48px "Orbitron", sans-serif';
-        ctx.fillText("Well done, you beat Level 1", centerX, 130);
+        ctx.fillText(`Well done, you beat Level ${this.levelIndex + 1}`, centerX, 130);
         ctx.restore();
 
         ctx.save();
@@ -108,28 +112,6 @@ class LevelCompleteScene extends Scene {
             });
         }
         ctx.restore();
-
-        if (this.showConstructionPopup) {
-            // Keep popup style consistent with MenuScene manual box.
-            const boxW = 700;
-            const boxH = 170;
-            const boxX = (w - boxW) / 2;
-            const popupYOffset = 140;
-            const boxY = ((h - boxH) / 2) + popupYOffset;
-
-            ctx.fillStyle = "rgba(0,0,0,0.65)";
-            ctx.fillRect(boxX, boxY, boxW, boxH);
-
-            ctx.fillStyle = "white";
-            ctx.font = '24px "Oxanium", sans-serif';
-            ctx.textAlign = "left";
-            ctx.textBaseline = "alphabetic";
-
-            const pad = 28;
-            const textX = boxX + pad;
-            const textY = boxY + 60;
-            ctx.fillText("This level is currently under construction", textX, textY);
-        }
 
         ctx.save();
         ctx.fillStyle = "rgba(255,255,255,0.85)";

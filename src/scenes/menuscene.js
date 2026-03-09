@@ -44,7 +44,7 @@ class MenuScene extends Scene {
     activateSelection() {
         if (this.selectedIndex === 0) {
 
-            this.game.sceneManager.changeScene(new GameScene(this.game, this.levelBgImage));
+            this.game.sceneManager.changeScene(new GameScene(this.game, this.levelBgImage, 0));
         } else {
             this.showManual = !this.showManual;
         }

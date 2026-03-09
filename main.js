@@ -39,9 +39,15 @@ ASSET_MANAGER.downloadAll(async () => {
 		foreground: ASSET_MANAGER.getAsset("assets/prison_foreground.png")
 	};
 
-	// Load the tilemap with tilesets
-	const tileMap = await mapLoader.load("assets/maps/1-1.json", tilesets);
-	gameEngine.tileMap = tileMap;
+	// Load all level tilemaps
+	const levelMaps = await Promise.all([
+		mapLoader.load("assets/maps/1-1.json", tilesets),
+		mapLoader.load("assets/maps/1-2.json", tilesets),
+		mapLoader.load("assets/maps/1-3.json", tilesets),
+		mapLoader.load("assets/maps/1-4.json", tilesets),
+	]);
+	gameEngine.levelMaps = levelMaps;
+	gameEngine.tileMap = levelMaps[0];
 
 	setupCollisions(gameEngine.collisionManager);
 
