@@ -150,9 +150,11 @@ class Camera {
      * Apply camera transform to canvas context
      */
     applyTransform(ctx) {
+        // Round camera position to whole pixels to prevent sub-pixel rendering
+        // which causes flickering grid lines between tiles
         ctx.translate(
-            -(this.x + this.shakeOffsetX),
-            -(this.y + this.shakeOffsetY)
+            -Math.round(this.x + this.shakeOffsetX),
+            -Math.round(this.y + this.shakeOffsetY)
         );
     }
 

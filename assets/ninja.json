@@ -1,0 +1,44 @@
+{
+  "marginWidth": 1,
+  "marginHeight": 1,
+  "xLineWidth": 0,
+  "yLineWidth": 0,
+  "animations": {
+    "run": {
+      "yStart": 0,
+      "frameCount": 10,
+      "frameWidth": 36,
+      "frameHeight": 32
+    },
+    "roll": {
+      "yStart": 35,
+      "frameCount": 7,
+      "frameWidth": 56,
+      "frameHeight": 32
+    },
+    "idle": {
+      "yStart": 69,
+      "frameCount": 16,
+      "frameWidth": 33,
+      "frameHeight": 34
+    },
+    "attack": {
+      "yStart": 106,
+      "frameCount": 4,
+      "frameWidth": 36,
+      "frameHeight": 39
+    },
+    "attack_slash": {
+      "yStart": 147,
+      "frameCount": 4,
+      "frameWidth": 124,
+      "frameHeight": 27
+    },
+    "airborne": {
+      "yStart": 176,
+      "frameCount": 8,
+      "frameWidth": 27,
+      "frameHeight": 43
+    }
+  }
+}

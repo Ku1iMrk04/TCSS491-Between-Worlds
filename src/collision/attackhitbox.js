@@ -32,10 +32,17 @@ class AttackHitbox {
         // Create slash animator for all attacks.
         // Directional attacks always use "right" facing so canvas rotation handles the direction.
         if (owner.animator && owner.game.assetManager) {
-            this.animator = new Animator("zero", owner.game.assetManager);
+            this.animator = new Animator("ninja", owner.game.assetManager);
             this.animator.setScale(owner.scale || 3);
             const slashFacing = this.attackDir ? "right" : owner.facing;
             this.animator.setAnimation("attack_slash", slashFacing, false);
+
+            // Disable bottom-alignment offset for slash - we want to position it manually
+            // The ninja sprite has max height of 43px (airborne), slash is 27px
+            // Without this, animator adds a 16px offset we don't want
+            const maxHeight = this.animator.maxAnimationHeight * this.animator.scale;
+            const slashHeight = 27 * this.animator.scale;
+            this.animator.setVerticalAdjustment(-(maxHeight - slashHeight));
         }
 
         // Current position
@@ -47,7 +54,7 @@ class AttackHitbox {
         this.hitEntities = new Set();
 
         // Lifetime timer (seconds)
-        this.life = 0.15;
+        this.life = 0.4;
 
         this.removeFromWorld = false;
         this.name = "AttackHitbox";
@@ -120,9 +127,9 @@ class AttackHitbox {
     draw(ctx, game) {
         // Draw the attack slash animation
         if (this.animator) {
-            // Slash sprite dimensions: 88x28 at owner scale
-            const slashWidth = 88 * this.owner.scale;
-            const slashHeight = 28 * this.owner.scale;
+            // Slash sprite dimensions: 124x27 at owner scale (ninja sprite)
+            const slashWidth = 124 * this.owner.scale;
+            const slashHeight = 27 * this.owner.scale;
 
             if (this.attackDir) {
                 const cx = this.owner.x + this.owner.width / 2;
@@ -154,18 +161,29 @@ class AttackHitbox {
             }
         }
 
-        // Draw hitbox in debug mode
-        if (game.debugging) {
+        // Draw attack hitbox when toggle is enabled
+        if (game.showHitboxes) {
             ctx.save();
-            ctx.strokeStyle = "red";
+            ctx.strokeStyle = "#ff0000";  // Red for attack hitbox
             ctx.lineWidth = 2;
-            ctx.globalAlpha = 0.5;
+            ctx.globalAlpha = 0.6;
             ctx.strokeRect(
                 this.x,
                 this.y,
                 this.collider.size.width,
                 this.collider.size.height
             );
+
+            // Draw center point
+            ctx.fillStyle = "#ff0000";
+            ctx.beginPath();
+            ctx.arc(
+                this.x + this.collider.size.width / 2,
+                this.y + this.collider.size.height / 2,
+                3, 0, Math.PI * 2
+            );
+            ctx.fill();
+
             ctx.restore();
         }
     }

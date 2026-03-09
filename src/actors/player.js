@@ -30,11 +30,18 @@ class Player extends Actor {
         this.name = "Player";
         this.facing = "right";  // Direction player is facing
         this.scale = 2;
-        this.width = 39 * this.scale;
-        this.height = 39 * this.scale;
+        this.width = 33 * this.scale;
+        this.height = 34 * this.scale;
         this.setCollider({ layer: "player" });
-        this.animator = new Animator("zero", this.game.assetManager)
+        this.animator = new Animator("ninja", this.game.assetManager)
         this.animator.setScale(this.scale);
+
+        // Adjust sprite position to align top of sprite with hitbox top
+        // Ninja max height is 43px (airborne), idle is 34px, creating a 9px offset
+        // We want the sprite top-aligned with hitbox, so negate the bottom-alignment
+        const maxHeight = 43; // airborne animation height
+        const playerHeight = 34; // idle animation height
+        this.animator.setVerticalAdjustment(-(maxHeight - playerHeight) * this.scale);
         this.speed = 275;
         this.currentAnimState = "idle";  // Track current animation state
         this.wasFalling = false;  // Track if player was falling (to prevent slope snapping mid-air)
@@ -409,6 +416,23 @@ class Player extends Actor {
         // Draw dream slash aim line
         if (this.currentState === this.states["dreamslashaim"]) {
             this.states["dreamslashaim"].drawAimLine(ctx);
+        }
+
+        // Draw player hitbox when toggle is enabled
+        if (game.showHitboxes) {
+            ctx.save();
+            ctx.strokeStyle = "#00ff00";  // Green for player hitbox
+            ctx.lineWidth = 2;
+            ctx.globalAlpha = 0.7;
+            ctx.strokeRect(this.x, this.y, this.width, this.height);
+
+            // Draw center point
+            ctx.fillStyle = "#00ff00";
+            ctx.beginPath();
+            ctx.arc(this.x + this.width / 2, this.y + this.height / 2, 3, 0, Math.PI * 2);
+            ctx.fill();
+
+            ctx.restore();
         }
     }
 
