@@ -32,9 +32,12 @@ export function setupCollisions(collisionManager) {
                 enemy.takeDamage(hitbox.damage);
             }
 
-            // Screen shake on hit
+            // Screen shake + hit freeze on hit
             if (hitbox.owner.game.camera) {
                 hitbox.owner.game.camera.shake(5, 0.15);
+            }
+            if (hitbox.owner.game.freeze) {
+                hitbox.owner.game.freeze(0.05);
             }
 
             // Charge dream meter on hit (only outside dream state)

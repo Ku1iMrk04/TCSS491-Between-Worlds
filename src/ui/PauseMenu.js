@@ -7,6 +7,8 @@ class PauseMenu {
         this.hoverScales = OPTIONS.map(() => 0);
         this.hoveredIndex = -1;
         this.buttonRects = [];
+        this.sliderDragging = false;
+        this.sliderRect = null;
     }
 
     draw(ctx, showControls) {
@@ -15,7 +17,7 @@ class PauseMenu {
         const cx = cw / 2;
 
         const panelW = 860;
-        const panelH = showControls ? 640 : 420;
+        const panelH = showControls ? 710 : 500;
         const panelX = cx - panelW / 2;
         const panelY = (ch - panelH) / 2;
 
@@ -140,6 +142,83 @@ class PauseMenu {
         if (showControls) {
             this._drawControls(ctx, panelX, panelW, btnsY + btnH + 30);
         }
+
+        // Volume slider
+        this._updateSlider();
+        this._drawVolumeSlider(ctx, panelX, panelW, panelY + panelH - 72);
+
+        ctx.restore();
+    }
+
+    _updateSlider() {
+        const mouse = this.game.mouse;
+        const isDown = this.game.leftMouseDown;
+        if (!isDown) { this.sliderDragging = false; return; }
+        if (!mouse || !this.sliderRect) return;
+
+        const r = this.sliderRect;
+        if (!this.sliderDragging) {
+            // Start drag only if mousedown began inside the track area
+            if (mouse.x >= r.x - 10 && mouse.x <= r.x + r.w + 10 &&
+                mouse.y >= r.y - 12 && mouse.y <= r.y + r.h + 12) {
+                this.sliderDragging = true;
+            }
+        }
+
+        if (this.sliderDragging && this.game.musicManager) {
+            const ratio = Math.max(0, Math.min(1, (mouse.x - r.x) / r.w));
+            this.game.musicManager.setVolume(ratio);
+        }
+    }
+
+    _drawVolumeSlider(ctx, panelX, panelW, y) {
+        const sliderW = 300;
+        const sliderH = 8;
+        const sliderX = panelX + (panelW - sliderW) / 2;
+        this.sliderRect = { x: sliderX, y, w: sliderW, h: sliderH };
+
+        const vol = this.game.musicManager ? this.game.musicManager.volume : 0.4;
+        const thumbX = sliderX + vol * sliderW;
+
+        ctx.save();
+
+        // Label
+        ctx.textAlign = "center";
+        ctx.textBaseline = "alphabetic";
+        ctx.font = '600 15px "Oxanium", sans-serif';
+        ctx.fillStyle = "rgba(192,132,252,0.75)";
+        ctx.fillText("MUSIC VOL", panelX + panelW / 2, y - 14);
+
+        // Track background
+        ctx.beginPath();
+        ctx.roundRect(sliderX, y, sliderW, sliderH, 4);
+        ctx.fillStyle = "rgba(30,10,60,0.7)";
+        ctx.fill();
+        ctx.strokeStyle = "rgba(120,70,180,0.5)";
+        ctx.lineWidth = 1;
+        ctx.stroke();
+
+        // Filled portion
+        if (vol > 0) {
+            ctx.beginPath();
+            ctx.roundRect(sliderX, y, vol * sliderW, sliderH, 4);
+            ctx.fillStyle = "#a855f7";
+            ctx.fill();
+        }
+
+        // Thumb
+        ctx.beginPath();
+        ctx.arc(thumbX, y + sliderH / 2, 9, 0, Math.PI * 2);
+        ctx.fillStyle = "#e9d5ff";
+        ctx.shadowColor = "#c084fc";
+        ctx.shadowBlur = 10;
+        ctx.fill();
+        ctx.shadowBlur = 0;
+
+        // Percentage
+        ctx.font = '14px "Oxanium", sans-serif';
+        ctx.fillStyle = "rgba(220,180,255,0.65)";
+        ctx.fillText(`${Math.round(vol * 100)}%`, panelX + panelW / 2, y + sliderH + 22);
 
         ctx.restore();
     }

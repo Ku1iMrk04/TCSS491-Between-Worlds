@@ -38,6 +38,9 @@ class Enemy extends Actor {
         this.attackAnimation = "idle";
         this.player = null;
         this.wasFalling = false;
+
+        // Alert indicator
+        this.alertTimer = 0;
     }
 
     findPlayer() {
@@ -127,6 +130,7 @@ class Enemy extends Actor {
         }
         const wasGrounded = this.grounded;
 
+        if (this.alertTimer > 0) this.alertTimer -= dt;
         this.attackTimer -= dt;
 
         const player = this.findPlayer();
@@ -185,6 +189,7 @@ class Enemy extends Actor {
         else if (horizontalGap > this.attackRange) {
             if (this.state !== "chase") {
                 this.state = "chase";
+                this.alertTimer = 0.7;
                 this.animator.setAnimation(this.chaseAnimation, this.facing, true);
             }
             let dir = 0;
@@ -345,6 +350,21 @@ class Enemy extends Actor {
 
     draw(ctx, game) {
         this.animator.draw(ctx, this.x, this.y);
+
+        if (this.alertTimer > 0) {
+            ctx.save();
+            ctx.font = "bold 20px Arial";
+            ctx.textAlign = "center";
+            ctx.textBaseline = "bottom";
+            ctx.fillStyle = "#ffdd00";
+            ctx.strokeStyle = "#000";
+            ctx.lineWidth = 3;
+            const tx = this.x + this.width / 2;
+            const ty = this.y - 6;
+            ctx.strokeText("!", tx, ty);
+            ctx.fillText("!", tx, ty);
+            ctx.restore();
+        }
     }
 }
 

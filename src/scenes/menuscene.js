@@ -24,6 +24,10 @@ class MenuScene extends Scene {
         for (let i = 0; i < 55; i++) {
             this.particles.push(this._spawnParticle(true));
         }
+
+        // Volume slider
+        this.sliderDragging = false;
+        this.sliderRect = null;
     }
 
     _spawnParticle(randomY = false) {
@@ -44,6 +48,25 @@ class MenuScene extends Scene {
     update() {
         const dt = this.game.clockTick;
         this.elapsed += dt;
+
+        // Volume slider drag
+        const mouse = this.game.mouse;
+        const isDown = this.game.leftMouseDown;
+        if (!isDown) {
+            this.sliderDragging = false;
+        } else if (mouse && this.sliderRect) {
+            const r = this.sliderRect;
+            if (!this.sliderDragging) {
+                if (mouse.x >= r.x - 10 && mouse.x <= r.x + r.w + 10 &&
+                    mouse.y >= r.y - 12 && mouse.y <= r.y + r.h + 12) {
+                    this.sliderDragging = true;
+                }
+            }
+            if (this.sliderDragging && this.game.musicManager) {
+                const ratio = Math.max(0, Math.min(1, (mouse.x - r.x) / r.w));
+                this.game.musicManager.setVolume(ratio);
+            }
+        }
 
         for (const p of this.particles) {
             p.x += p.vx * dt;
@@ -165,6 +188,9 @@ class MenuScene extends Scene {
         // Buttons
         this._drawButtons(ctx, h, cx);
 
+        // Volume slider
+        this._drawVolumeSlider(ctx, cx, h);
+
         // Footer
         ctx.save();
         ctx.fillStyle    = "rgba(192,132,252,0.55)";
@@ -180,6 +206,59 @@ class MenuScene extends Scene {
         }
 
         ctx.textAlign = "left";
+    }
+
+    _drawVolumeSlider(ctx, cx, h) {
+        const sliderW = 240;
+        const sliderH = 8;
+        const sliderX = cx - sliderW / 2;
+        const sliderY = h - 90;
+        this.sliderRect = { x: sliderX, y: sliderY, w: sliderW, h: sliderH };
+
+        const vol = this.game.musicManager ? this.game.musicManager.volume : 0.4;
+        const thumbX = sliderX + vol * sliderW;
+
+        ctx.save();
+
+        // Label
+        ctx.textAlign = "center";
+        ctx.textBaseline = "alphabetic";
+        ctx.font = '600 13px "Oxanium", sans-serif';
+        ctx.fillStyle = "rgba(192,132,252,0.65)";
+        ctx.fillText("MUSIC VOL", cx, sliderY - 12);
+
+        // Track background
+        ctx.beginPath();
+        ctx.roundRect(sliderX, sliderY, sliderW, sliderH, 4);
+        ctx.fillStyle = "rgba(20,5,45,0.7)";
+        ctx.fill();
+        ctx.strokeStyle = "rgba(120,70,180,0.45)";
+        ctx.lineWidth = 1;
+        ctx.stroke();
+
+        // Filled portion
+        if (vol > 0) {
+            ctx.beginPath();
+            ctx.roundRect(sliderX, sliderY, vol * sliderW, sliderH, 4);
+            ctx.fillStyle = "#a855f7";
+            ctx.fill();
+        }
+
+        // Thumb
+        ctx.beginPath();
+        ctx.arc(thumbX, sliderY + sliderH / 2, 8, 0, Math.PI * 2);
+        ctx.fillStyle = "#e9d5ff";
+        ctx.shadowColor = "#c084fc";
+        ctx.shadowBlur = 10;
+        ctx.fill();
+        ctx.shadowBlur = 0;
+
+        // Percentage
+        ctx.font = '13px "Oxanium", sans-serif';
+        ctx.fillStyle = "rgba(220,180,255,0.55)";
+        ctx.fillText(`${Math.round(vol * 100)}%`, cx, sliderY + sliderH + 20);
+
+        ctx.restore();
     }
 
     _drawButtons(ctx, h, cx) {

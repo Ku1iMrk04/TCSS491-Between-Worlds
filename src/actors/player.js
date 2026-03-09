@@ -73,6 +73,9 @@ class Player extends Actor {
         this.dreamSlashCooldown = 0.35;
         this.dreamSlashCooldownTimer = 0;
 
+        // Dream particle trail
+        this.dreamParticles = [];
+        this.dreamParticleTimer = 0;
     }
 
     onCollision(other) {
@@ -90,6 +93,14 @@ class Player extends Actor {
             this.dreamSlashCooldownTimer -= dt;
         }
 
+        // Dream particle trail - update existing particles
+        for (let i = this.dreamParticles.length - 1; i >= 0; i--) {
+            const p = this.dreamParticles[i];
+            p.alpha -= dt * 4;
+            p.radius += dt * 8;
+            if (p.alpha <= 0) this.dreamParticles.splice(i, 1);
+        }
+
         // Dream state drain / passive recharge
         if (this.inDreamState) {
             this.dreamMeter -= this.dreamDrainRate * dt;
@@ -100,6 +111,20 @@ class Player extends Actor {
             }
         } else {
             this.dreamMeter = Math.min(this.dreamMeterMax, this.dreamMeter + this.dreamMeterRechargeRate * dt);
+        }
+
+        // Spawn dream particles while in dream state
+        if (this.inDreamState) {
+            this.dreamParticleTimer -= dt;
+            if (this.dreamParticleTimer <= 0) {
+                this.dreamParticleTimer = 0.04;
+                this.dreamParticles.push({
+                    x: this.x + this.width / 2 + (Math.random() - 0.5) * 10,
+                    y: this.y + this.height / 2 + (Math.random() - 0.5) * 10,
+                    alpha: 0.55,
+                    radius: 5
+                });
+            }
         }
 
         // Dream state activation (E key)
@@ -384,6 +409,17 @@ class Player extends Actor {
     }
 
     draw(ctx, game) {
+        // Draw dream particle trail behind player
+        for (const p of this.dreamParticles) {
+            ctx.save();
+            ctx.globalAlpha = p.alpha;
+            ctx.fillStyle = "#cc44ff";
+            ctx.beginPath();
+            ctx.arc(p.x, p.y, p.radius, 0, Math.PI * 2);
+            ctx.fill();
+            ctx.restore();
+        }
+
         const attackState = this.states["attack"];
         const isAttacking = this.currentState === attackState;
 
