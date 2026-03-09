@@ -1,9 +1,11 @@
 import ScientistEnemy from "./scientistenemy.js";
 import Animator from "../animation/animator.js";
 
-const GANGSTER_SPEED = 0;
+const GANGSTER_SPEED = 0; // Stationary turret
 const GANGSTER_AGGRO_RANGE = 760;
 const GANGSTER_ATTACK_RANGE = 760;
+const GANGSTER_VISION_RANGE = 760; // Same as attack range for full awareness
+const GANGSTER_ATTACK_DELAY = 0.8; // Quick shot delay
 const GANGSTER_VERTICAL_AWARENESS = 500;
 const GANGSTER_STAIR_VERTICAL_AWARENESS = 500;
 const GANGSTER_ATTACK_COOLDOWN_SECONDS = 1;
@@ -25,10 +27,13 @@ class GangsterEnemy extends ScientistEnemy {
         this.speed = GANGSTER_SPEED;
         this.aggroRange = GANGSTER_AGGRO_RANGE;
         this.attackRange = GANGSTER_ATTACK_RANGE;
+        this.visionRange = GANGSTER_VISION_RANGE;
+        this.visionAngle = 360;
+        this.attackDelay = GANGSTER_ATTACK_DELAY;
         this.verticalAwareness = GANGSTER_VERTICAL_AWARENESS;
         this.stairVerticalAwareness = GANGSTER_STAIR_VERTICAL_AWARENESS;
 
-        // Fire one bullet every 4 seconds to avoid rapid-fire spam.
+        // Fire one bullet every second to avoid rapid-fire spam.
         this.attackCooldown = GANGSTER_ATTACK_COOLDOWN_SECONDS;
         this.projectileSpeedMultiplier = GANGSTER_PROJECTILE_SPEED_MULTIPLIER;
         this.projectileSpeed = GANGSTER_PROJECTILE_SPEED;
@@ -44,23 +49,23 @@ class GangsterEnemy extends ScientistEnemy {
         this.animator = new Animator("gangsteridle_3", this.game.assetManager);
         this.animator.setScale(this.scale);
         this.idleAnimation = "idle";
-        this.chaseAnimation = "walk";
+        this.chaseAnimation = "idle";
         this.attackAnimation = "idle";
     }
 
     canEngagePlayer(player, context) {
-        // Do not engage while player is transitioning on stairs.
-        if (context.playerOnSlope) {
-            return false;
-        }
-
+        const target = context.targetPos ?? player;
         const gangsterCenterY = this.y + (this.height / 2);
-        const playerCenterY = player.y + (player.height / 2);
-        const verticalAimDelta = Math.abs(playerCenterY - gangsterCenterY);
+        const targetCenterY = target.y + ((target.height ?? player.height) / 2);
+        const verticalAimDelta = Math.abs(targetCenterY - gangsterCenterY);
         const hasHorizontalShot = verticalAimDelta <= this.horizontalAimTolerance;
-        const playerOnSecondFloor = player.y <= this.secondFloorY;
+        const targetOnSecondFloor = target.y <= this.secondFloorY - this.floorTransitionBuffer;
 
-        return hasHorizontalShot || playerOnSecondFloor;
+        return context.canSeePlayer ||
+            context.sameFloor ||
+            context.stairPursuitActive ||
+            hasHorizontalShot ||
+            targetOnSecondFloor;
     }
 
     draw(ctx, game) {

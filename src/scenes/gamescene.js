@@ -15,18 +15,28 @@ const PAUSE_OPTION_RESUME = "Resume";
 const PAUSE_OPTION_RESTART = "Restart";
 const PAUSE_OPTION_CONTROLS = "Controls";
 
+// Per-level player spawn positions (x, y in world pixels).
+// Adjust these if a level's starting position feels wrong.
+const LEVEL_SPAWN_POINTS = [
+    { x: 160, y: 256 },   // Level 1
+    { x: 160, y: 256 },   // Level 2
+    { x: 400, y: 820 },   // Level 3 (starts below ceiling at row 20)
+    { x: 160, y: 256 },   // Level 4
+];
+
 class GameScene extends Scene {
-    constructor(game, levelBgImage, levelName = "Level 1") {
+    constructor(game, levelBgImage, levelIndex = 0) {
         super(game);
         this.isGameplay = true;
         this.levelBgImage = levelBgImage;
+        this.levelIndex = levelIndex;
 
         this.player = null;
         this.levelCompleteTriggered = false;
         this.isPaused = false;
         this.showPauseControls = false;
 
-        this.ui = new GameUI(game, levelName);
+        this.ui = new GameUI(game, `Level ${levelIndex + 1}`);
     }
 
     enter() {
@@ -35,6 +45,15 @@ class GameScene extends Scene {
         this.isPaused = false;
         this.showPauseControls = false;
         this.ui.startLevel();
+
+        if (this.game.musicManager) {
+            this.game.musicManager.play("gameplay");
+        }
+
+        // Load the map for this level
+        if (this.game.levelMaps && this.game.levelMaps[this.levelIndex]) {
+            this.game.tileMap = this.game.levelMaps[this.levelIndex];
+        }
 
         const tileMap = this.game.tileMap;
 
@@ -45,12 +64,9 @@ class GameScene extends Scene {
 
         this.game.camera = new Camera(viewportWidth, viewportHeight, worldWidth, worldHeight);
 
-        const playerSpawn = tileMap.getPlayerSpawn();
-        if (playerSpawn) {
-            this.player = new Player(this.game, playerSpawn.x, playerSpawn.y);
-        } else {
-            this.player = new Player(this.game, 300, 750);
-        }
+        const levelSpawn = LEVEL_SPAWN_POINTS[this.levelIndex];
+        const playerSpawn = levelSpawn || tileMap.getPlayerSpawn() || { x: 300, y: 750 };
+        this.player = new Player(this.game, playerSpawn.x, playerSpawn.y);
         this.game.addEntity(this.player);
         this.game.camera.follow(this.player);
 
@@ -70,7 +86,21 @@ class GameScene extends Scene {
         }
     }
 
+    exit() {
+        if (this.game.musicManager) {
+            this.game.musicManager.stop();
+        }
+    }
+
     onKeyDown(event) {
+        if (event.code === "Escape") {
+            if (this.isPaused) {
+                this.resumeGameplay();
+            } else {
+                this.pauseGameplay();
+            }
+            return;
+        }
         if (event.code === "KeyR") {
             this.game.sceneManager.changeScene(new MenuScene(this.game, this.game.menuBgImage, this.levelBgImage));
         }
@@ -113,10 +143,14 @@ class GameScene extends Scene {
 
         if (this.getAliveEnemyCount() === 0) {
             this.levelCompleteTriggered = true;
+            const totalLevels = this.game.levelMaps ? this.game.levelMaps.length : 1;
+            const hasNextLevel = this.levelIndex + 1 < totalLevels;
             this.game.sceneManager.changeScene(new LevelCompleteScene(
                 this.game,
                 this.levelBgImage,
-                () => new GameScene(this.game, this.levelBgImage),
+                this.levelIndex,
+                () => new GameScene(this.game, this.levelBgImage, this.levelIndex),
+                hasNextLevel ? () => new GameScene(this.game, this.levelBgImage, this.levelIndex + 1) : null,
                 () => new MenuScene(this.game, this.game.menuBgImage, this.levelBgImage)
             ));
         }
@@ -177,7 +211,7 @@ class GameScene extends Scene {
         if (action === PAUSE_OPTION_RESUME) {
             this.resumeGameplay();
         } else if (action === PAUSE_OPTION_RESTART) {
-            this.game.sceneManager.changeScene(new GameScene(this.game, this.levelBgImage));
+            this.game.sceneManager.changeScene(new GameScene(this.game, this.levelBgImage, this.levelIndex));
         } else if (action === PAUSE_OPTION_CONTROLS) {
             this.showPauseControls = !this.showPauseControls;
         }
