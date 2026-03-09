@@ -7,7 +7,7 @@ class Fall extends State {
 
         // Set fall animation
         if (entity.animator) {
-            entity.animator.setAnimation("fall", entity.facing, true);
+            entity.animator.setAnimation("airborne", entity.facing, true);
         }
     }
 

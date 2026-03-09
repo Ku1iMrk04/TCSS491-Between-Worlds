@@ -30,11 +30,18 @@ class Player extends Actor {
         this.name = "Player";
         this.facing = "right";  // Direction player is facing
         this.scale = 2;
-        this.width = 39 * this.scale;
-        this.height = 39 * this.scale;
+        this.width = 33 * this.scale;
+        this.height = 34 * this.scale;
         this.setCollider({ layer: "player" });
-        this.animator = new Animator("zero", this.game.assetManager)
+        this.animator = new Animator("ninja", this.game.assetManager)
         this.animator.setScale(this.scale);
+
+        // Adjust sprite position to align top of sprite with hitbox top
+        // Ninja max height is 43px (airborne), idle is 34px, creating a 9px offset
+        // We want the sprite top-aligned with hitbox, so negate the bottom-alignment
+        const maxHeight = 43; // airborne animation height
+        const playerHeight = 34; // idle animation height
+        this.animator.setVerticalAdjustment(-(maxHeight - playerHeight) * this.scale);
         this.speed = 275;
         this.currentAnimState = "idle";  // Track current animation state
         this.wasFalling = false;  // Track if player was falling (to prevent slope snapping mid-air)
@@ -62,9 +69,10 @@ class Player extends Actor {
         // Dream State
         this.dreamMeter = 1;
         this.dreamMeterMax = 1;
-        this.dreamMeterChargePerHit = 0.15;
         this.inDreamState = false;
-        this.dreamDrainRate = 0.08;
+        this.dreamDrainRate = 0.12;
+        this.dreamMeterRechargeRate = 0.08;
+        this.dreamMeterChargePerHit = 0.08;
         this.dreamBlinkCost = 0.15;
         this.dreamSpeedMultiplier = 1.5;
         this.dreamSlashTargetX = 0;
@@ -72,6 +80,9 @@ class Player extends Actor {
         this.dreamSlashCooldown = 0.35;
         this.dreamSlashCooldownTimer = 0;
 
+        // Dream particle trail
+        this.dreamParticles = [];
+        this.dreamParticleTimer = 0;
     }
 
     onCollision(other) {
@@ -89,13 +100,37 @@ class Player extends Actor {
             this.dreamSlashCooldownTimer -= dt;
         }
 
-        // Dream state drain
+        // Dream particle trail - update existing particles
+        for (let i = this.dreamParticles.length - 1; i >= 0; i--) {
+            const p = this.dreamParticles[i];
+            p.alpha -= dt * 4;
+            p.radius += dt * 8;
+            if (p.alpha <= 0) this.dreamParticles.splice(i, 1);
+        }
+
+        // Dream state drain / passive recharge
         if (this.inDreamState) {
             this.dreamMeter -= this.dreamDrainRate * dt;
             if (this.dreamMeter <= 0) {
                 this.dreamMeter = 0;
                 this.inDreamState = false;
                 this.speed /= this.dreamSpeedMultiplier;
+            }
+        } else {
+            this.dreamMeter = Math.min(this.dreamMeterMax, this.dreamMeter + this.dreamMeterRechargeRate * dt);
+        }
+
+        // Spawn dream particles while in dream state
+        if (this.inDreamState) {
+            this.dreamParticleTimer -= dt;
+            if (this.dreamParticleTimer <= 0) {
+                this.dreamParticleTimer = 0.04;
+                this.dreamParticles.push({
+                    x: this.x + this.width / 2 + (Math.random() - 0.5) * 10,
+                    y: this.y + this.height / 2 + (Math.random() - 0.5) * 10,
+                    alpha: 0.55,
+                    radius: 5
+                });
             }
         }
 
@@ -114,10 +149,8 @@ class Player extends Actor {
         const isAiming = this.currentState === this.states["dashstrikeaim"];
         const isDashing = this.currentState === this.states["dashstrike"];
         const isBlinking = this.currentState === this.states["dreamslash"];
-        const isDreamAiming = this.currentState === this.states["dreamslashaim"];
-
         // Block all other inputs while aiming, dashing, or blinking
-        if (!isAiming && !isDashing && !isBlinking && !isDreamAiming) {
+        if (!isAiming && !isDashing && !isBlinking) {
             // Jump input (only when grounded and not attacking/rolling)
             if (this.game.space && this.grounded && this.currentState !== this.states["attack"] && this.currentState !== this.states["roll"]) {
                 this.changeState("jump");
@@ -131,7 +164,28 @@ class Player extends Actor {
             // Attack input with left click (can attack mid-air)
             if (this.game.click && this.currentState !== this.states["attack"] && this.currentState !== this.states["roll"]) {
                 if (this.inDreamState && this.dreamSlashCooldownTimer <= 0) {
-                    this.changeState("dreamslashaim");
+                    // Instantly set target from current mouse position and dash
+                    const mouse = this.game.mouse || this.game.click;
+                    const maxDist = this.states["dreamslashaim"].maxDashDistance;
+                    if (mouse) {
+                        const screenX = mouse.x / 2;
+                        const screenY = mouse.y / 2;
+                        const worldMouse = this.game.camera.screenToWorld(screenX, screenY);
+                        const cx = this.x + this.width / 2;
+                        const cy = this.y + this.height / 2;
+                        const dx = worldMouse.x - cx;
+                        const dy = worldMouse.y - cy;
+                        const dist = Math.hypot(dx, dy);
+                        const dirX = dist > 0 ? dx / dist : 1;
+                        const dirY = dist > 0 ? dy / dist : 0;
+                        this.dreamSlashTargetX = cx + dirX * maxDist;
+                        this.dreamSlashTargetY = cy + dirY * maxDist;
+                    } else {
+                        // Fallback: dash in facing direction
+                        this.dreamSlashTargetX = this.x + this.width / 2 + (this.facing === "right" ? maxDist : -maxDist);
+                        this.dreamSlashTargetY = this.y + this.height / 2;
+                    }
+                    this.changeState("dreamslash");
                 } else {
                     this.changeState("attack");
                 }
@@ -162,7 +216,6 @@ class Player extends Actor {
                 this.currentState !== this.states["fall"] &&
                 this.currentState !== this.states["attack"] &&
                 this.currentState !== this.states["roll"] &&
-                this.currentState !== this.states["dreamslashaim"] &&
                 this.currentState !== this.states["dreamslash"]) {
                 this.wasFalling = true;
                 this.changeState("fall");
@@ -363,6 +416,17 @@ class Player extends Actor {
     }
 
     draw(ctx, game) {
+        // Draw dream particle trail behind player
+        for (const p of this.dreamParticles) {
+            ctx.save();
+            ctx.globalAlpha = p.alpha;
+            ctx.fillStyle = "#cc44ff";
+            ctx.beginPath();
+            ctx.arc(p.x, p.y, p.radius, 0, Math.PI * 2);
+            ctx.fill();
+            ctx.restore();
+        }
+
         const attackState = this.states["attack"];
         const isAttacking = this.currentState === attackState;
 
@@ -395,21 +459,12 @@ class Player extends Actor {
             this.animator.draw(ctx, this.x, this.y);
         }
 
-        // Draw crosshair on targeted enemy when ability is ready
-        if (this.dashStrikeTarget && this.dashStrikeCooldownTimer <= 0
-            && this.currentState !== this.states["dashstrikeaim"]) {
-            this._drawCrosshair(ctx, this.dashStrikeTarget);
-        }
-
         // Draw skill shot bar during aiming
         if (this.currentState === this.states["dashstrikeaim"]) {
             this._drawSkillShotBar(ctx);
         }
 
-        // Draw dream slash aim line
-        if (this.currentState === this.states["dreamslashaim"]) {
-            this.states["dreamslashaim"].drawAimLine(ctx);
-        }
+
     }
 
     _findClosestEnemyInRange() {

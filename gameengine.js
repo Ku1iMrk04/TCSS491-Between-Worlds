@@ -42,9 +42,15 @@ export class GameEngine {
         this.timeScale = 1;
         this.rawClockTick = 0;
 
+        // Hit freeze
+        this.freezeTimer = 0;
+
         // Mouse button tracking
         this.leftMouseDown = false;
         this.leftMouseReleased = false;
+
+        // Hitbox visualization toggle
+        this.showHitboxes = false;
 
         // Options and the Details
         this.options = options || {
@@ -153,6 +159,11 @@ export class GameEngine {
                 case "KeyE":
                     this.eKey = true;
                     break;
+                case "KeyH":
+                    // Toggle hitbox visualization
+                    this.showHitboxes = !this.showHitboxes;
+                    console.log("Hitbox visualization:", this.showHitboxes ? "ON" : "OFF");
+                    break;
             }
         });
 
@@ -191,6 +202,10 @@ export class GameEngine {
             }
         });
     };
+
+    freeze(duration) {
+        this.freezeTimer = Math.max(this.freezeTimer, duration);
+    }
 
     addEntity(entity) {
         this.entities.push(entity);
@@ -285,7 +300,15 @@ export class GameEngine {
 
     loop() {
         this.rawClockTick = this.timer.tick();
-        this.clockTick = this.rawClockTick * this.timeScale;
+
+        if (this.freezeTimer > 0) {
+            this.freezeTimer -= this.rawClockTick;
+            this.clockTick = 0;
+        } else {
+            this.freezeTimer = 0;
+            this.clockTick = this.rawClockTick * this.timeScale;
+        }
+
         this.update();
         this.draw();
     };

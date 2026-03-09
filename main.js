@@ -4,12 +4,14 @@ import { setupCollisions } from "./src/collision/collisionsetup.js";
 import SceneManager from "./src/scenes/scenemanager.js";
 import MenuScene from "./src/scenes/menuscene.js";
 import MapLoader from "./src/map/maploader.js";
+import MusicManager from "./src/audio/musicmanager.js";
 
 const gameEngine = new GameEngine({ debugging: true });
 const mapLoader = new MapLoader();
 
 const ASSET_MANAGER = new AssetManager();
 // Sprite sheets with animations (will load .json metadata)
+ASSET_MANAGER.queueSprite("assets/ninja.png");
 ASSET_MANAGER.queueSprite("assets/zero.png");
 ASSET_MANAGER.queueSprite("assets/enemy_scientist.png");
 ASSET_MANAGER.queueSprite("assets/grunt_idle.png");
@@ -39,11 +41,24 @@ ASSET_MANAGER.downloadAll(async () => {
 		foreground: ASSET_MANAGER.getAsset("assets/prison_foreground.png")
 	};
 
-	// Load the tilemap with tilesets
-	const tileMap = await mapLoader.load("assets/maps/1-1.json", tilesets);
-	gameEngine.tileMap = tileMap;
+	// Load all level tilemaps
+	const levelMaps = await Promise.all([
+		mapLoader.load("assets/maps/1-1.json", tilesets),
+		mapLoader.load("assets/maps/1-2.json", tilesets),
+		mapLoader.load("assets/maps/1-3.json", tilesets),
+		mapLoader.load("assets/maps/1-4.json", tilesets),
+	]);
+	gameEngine.levelMaps = levelMaps;
+	gameEngine.tileMap = levelMaps[0];
 
 	setupCollisions(gameEngine.collisionManager);
+
+	// Music setup — register tracks here, add more as needed
+	const musicManager = new MusicManager();
+	musicManager.register("gameplay", "viacheslavstarostin-game-gaming-video-game-music-471936.mp3");
+	// musicManager.register("menu",     "assets/audio/menu.mp3");
+	// musicManager.register("boss",     "assets/audio/boss.mp3");
+	gameEngine.musicManager = musicManager;
 
 	gameEngine.sceneManager = new SceneManager(gameEngine);
     const menuBg = ASSET_MANAGER.getAsset("assets/menu_background.png");

@@ -16,18 +16,32 @@ class Enemy extends Actor {
         this.contactDamage = 10;
         this.damage = 10;  // Damage dealt to player on contact
 
-        this.state = "idle";  // Possible states: idle, patrol, chase, attack
+        this.state = "idle";  // Possible states: idle, chase, waitingToAttack, attacking
         this.aggroRange = 420;
         this.attackRange = 40;
         this.verticalAwareness = 80; // Detect/chase targets on the same floor with a bit more tolerance
         this.stairVerticalAwareness = 320; // Keep chase active through taller stair height differences
         this.secondFloorY = 240; // Map-specific upper floor cutoff (smaller Y = higher on map)
+        this.floorTransitionBuffer = 72; // Avoid dropping aggro while targets are still moving through stairs
+        this.stairPursuitGrace = 1.25; // Keep pursuit active briefly after the player exits the stairs
+        this.stairPursuitTimer = 0;
         this.horizontalDeadzone = 6; // Prevent jitter when target is almost perfectly aligned in X
         this.speed = 30;
+
+        // Vision cone properties
+        this.visionRange = 420; // Distance the enemy can see
+        this.visionAngle = 180; // Cone width in degrees (180 = 90 degree cone on each side)
 
         // attack timing
         this.attackCooldown = 0.9; // seconds
         this.attackTimer = 0;
+        this.attackDelay = 1.0; // Delay before first attack
+        this.attackDelayTimer = 0;
+
+        // Tracking player and last seen position
+        this.player = null;
+        this.lastSeenPlayerPos = null; // { x, y }
+        this.hasSeenPlayer = false; // Whether enemy has ever seen the player
 
         // facing hitbox placement
         this.facing = "left";
@@ -36,8 +50,10 @@ class Enemy extends Actor {
         this.idleAnimation = "idle";
         this.chaseAnimation = "walk";
         this.attackAnimation = "idle";
-        this.player = null;
         this.wasFalling = false;
+
+        // Alert indicator
+        this.alertTimer = 0;
     }
 
     findPlayer() {
@@ -48,6 +64,235 @@ class Enemy extends Actor {
         const entities = this.game.entities || this.game.gameEngine?.entities || [];
         this.player = entities.find(e => e && e.name === "Player") || null;
         return this.player;
+    }
+
+    createTargetSnapshot(target) {
+        if (!target) return null;
+
+        return {
+            x: target.x,
+            y: target.y,
+            width: target.width,
+            height: target.height
+        };
+    }
+
+    /**
+     * Check if player is in the enemy's vision cone
+     * Vision cone is a cone in front of the enemy
+     */
+    isPlayerInVisionCone(player) {
+        if (!player) return false;
+
+        const enemyCenterX = this.x + (this.width / 2);
+        const enemyCenterY = this.y + (this.height / 2);
+        const playerCenterX = player.x + (player.width / 2);
+        const playerCenterY = player.y + (player.height / 2);
+
+        const dx = playerCenterX - enemyCenterX;
+        const dy = playerCenterY - enemyCenterY;
+        const distance = Math.sqrt(dx * dx + dy * dy);
+
+        // Check if player is within vision range
+        if (distance > this.visionRange) {
+            return false;
+        }
+
+        // Check if player is in front of enemy (within cone angle)
+        const directionFromEnemy = Math.atan2(dy, dx);
+        const enemyFacingDirection = this.facing === "right" ? 0 : Math.PI;
+
+        // Calculate angle difference (in radians)
+        let angleDiff = Math.abs(directionFromEnemy - enemyFacingDirection);
+
+        // Normalize to 0-π
+        if (angleDiff > Math.PI) {
+            angleDiff = 2 * Math.PI - angleDiff;
+        }
+
+        // Convert vision angle (half angle on each side) to radians
+        const maxAngleDiff = (this.visionAngle / 2) * (Math.PI / 180);
+
+        return angleDiff <= maxAngleDiff;
+    }
+
+    /**
+     * Check whether a wall blocks the direct line between enemy and player.
+     */
+    canSeePlayerClearly(player) {
+        if (!player) return false;
+
+        const tileMap = this.game.tileMap;
+        if (!tileMap) return true;
+
+        const startX = this.x + (this.width / 2);
+        const startY = this.y + (this.height / 2);
+        const endX = player.x + (player.width / 2);
+        const endY = player.y + (player.height / 2);
+        const dx = endX - startX;
+        const dy = endY - startY;
+        const distance = Math.sqrt(dx * dx + dy * dy);
+
+        if (distance === 0) {
+            return true;
+        }
+
+        const sampleSpacing = Math.max(4, Math.min(tileMap.tileWidth, tileMap.tileHeight) / 2);
+        const sampleCount = Math.ceil(distance / sampleSpacing);
+
+        for (let i = 1; i < sampleCount; i++) {
+            const t = i / sampleCount;
+            const sampleX = startX + (dx * t);
+            const sampleY = startY + (dy * t);
+
+            if (tileMap.isSolidAtWorld(sampleX, sampleY)) {
+                const tileX = Math.floor(sampleX / tileMap.tileWidth);
+                const tileY = Math.floor(sampleY / tileMap.tileHeight);
+                if (tileMap.getSlopeAt(tileX, tileY)) {
+                    continue;
+                }
+                return false;
+            }
+        }
+
+        return true;
+    }
+
+    canCurrentlySeePlayer(player) {
+        return this.isPlayerInVisionCone(player) && this.canSeePlayerClearly(player);
+    }
+
+    clearTargetMemory() {
+        this.lastSeenPlayerPos = null;
+        this.hasSeenPlayer = false;
+    }
+
+    hasReachedTargetPosition(targetPos) {
+        if (!targetPos) return false;
+
+        const enemyCenterX = this.x + (this.width / 2);
+        const enemyCenterY = this.y + (this.height / 2);
+        const targetCenterX = targetPos.x + ((targetPos.width ?? 0) / 2);
+        const targetCenterY = targetPos.y + ((targetPos.height ?? 0) / 2);
+        const horizontalTolerance = Math.max(this.horizontalDeadzone * 2, 14);
+        const verticalTolerance = Math.max(this.height / 2, 32);
+
+        return Math.abs(targetCenterX - enemyCenterX) <= horizontalTolerance &&
+            Math.abs(targetCenterY - enemyCenterY) <= verticalTolerance;
+    }
+
+    getTargetContext(player) {
+        const canSeePlayer = this.canCurrentlySeePlayer(player);
+        let targetPos = null;
+
+        if (canSeePlayer) {
+            targetPos = this.createTargetSnapshot(player);
+            this.lastSeenPlayerPos = targetPos;
+            this.hasSeenPlayer = true;
+        } else if (this.hasSeenPlayer) {
+            targetPos = this.createTargetSnapshot(player);
+        } else if (this.lastSeenPlayerPos) {
+            targetPos = this.lastSeenPlayerPos;
+        }
+
+        if (!targetPos) {
+            return {
+                canSeePlayer,
+                targetPos: null,
+                centerDx: 0,
+                horizontalDist: 0,
+                horizontalGap: 0,
+                verticalDist: 0,
+                canEngage: false,
+                targetReached: false
+            };
+        }
+
+        const targetWidth = targetPos.width ?? player.width ?? 0;
+        const targetHeight = targetPos.height ?? player.height ?? 0;
+        const targetCenterX = targetPos.x + (targetWidth / 2);
+        const targetCenterY = targetPos.y + (targetHeight / 2);
+        const enemyCenterX = this.x + (this.width / 2);
+        const enemyCenterY = this.y + (this.height / 2);
+        const centerDx = targetCenterX - enemyCenterX;
+        const horizontalDist = Math.abs(centerDx);
+        const horizontalGap = Math.max(
+            0,
+            Math.max(
+                targetPos.x - (this.x + this.width),
+                this.x - (targetPos.x + targetWidth)
+            )
+        );
+        const verticalDist = Math.abs(targetCenterY - enemyCenterY);
+        const targetOnSlope = this.isOnSlope({
+            x: targetPos.x,
+            y: targetPos.y,
+            width: targetWidth,
+            height: targetHeight
+        });
+        const enemyOnSlope = this.isOnSlope(this);
+        const targetNearFloorTransition = Math.abs(targetCenterY - this.secondFloorY) <= this.floorTransitionBuffer;
+        const enemyNearFloorTransition = Math.abs(enemyCenterY - this.secondFloorY) <= this.floorTransitionBuffer;
+        const stairTransitionActive = targetOnSlope || enemyOnSlope ||
+            targetNearFloorTransition || enemyNearFloorTransition;
+        if (stairTransitionActive && (canSeePlayer || this.hasSeenPlayer)) {
+            this.stairPursuitTimer = this.stairPursuitGrace;
+        }
+        const stairPursuitActive = stairTransitionActive || this.stairPursuitTimer > 0;
+        const verticalLimit = stairPursuitActive ? this.stairVerticalAwareness : this.verticalAwareness;
+        let sameFloor = verticalDist <= verticalLimit;
+
+        const fullyUpperFloorCutoff = this.secondFloorY - this.floorTransitionBuffer;
+        const fullyLowerFloorCutoff = this.secondFloorY + 40 + this.floorTransitionBuffer;
+        const targetFullyUpperFloor = targetPos.y <= fullyUpperFloorCutoff;
+        const enemyFullyUpperFloor = this.y <= fullyUpperFloorCutoff;
+        const targetFullyLowerFloor = targetPos.y >= fullyLowerFloorCutoff;
+        const enemyFullyLowerFloor = this.y >= fullyLowerFloorCutoff;
+
+        if (!stairPursuitActive &&
+            ((targetFullyUpperFloor && enemyFullyLowerFloor) ||
+                (enemyFullyUpperFloor && targetFullyLowerFloor))) {
+            sameFloor = false;
+        }
+
+        const canEngage = this.canEngagePlayer(player, {
+            sameFloor,
+            playerOnSlope: targetOnSlope,
+            enemyOnSlope,
+            horizontalDist,
+            horizontalGap,
+            verticalDist,
+            centerDx,
+            targetPos,
+            canSeePlayer,
+            targetNearFloorTransition,
+            enemyNearFloorTransition,
+            stairTransitionActive,
+            stairPursuitActive
+        });
+
+        return {
+            canSeePlayer,
+            targetPos,
+            centerDx,
+            horizontalDist,
+            horizontalGap,
+            verticalDist,
+            canEngage,
+            targetReached: this.hasReachedTargetPosition(targetPos)
+        };
+    }
+
+    finalizeUpdate(wasGrounded) {
+        super.update();
+        this.handleTileCollision();
+
+        if (wasGrounded && !this.grounded) {
+            this.wasFalling = true;
+        }
+        if (this.grounded) {
+            this.wasFalling = false;
+        }
     }
 
     onCollision(other) {
@@ -73,7 +318,8 @@ class Enemy extends Actor {
     }
 
     canEngagePlayer(player, context) {
-        return context.sameFloor;
+        return context.sameFloor ||
+            (context.stairPursuitActive && (context.canSeePlayer || this.hasSeenPlayer));
     }
 
     performAttack() {
@@ -127,94 +373,100 @@ class Enemy extends Actor {
         }
         const wasGrounded = this.grounded;
 
+        if (this.alertTimer > 0) this.alertTimer -= dt;
         this.attackTimer -= dt;
+        this.attackDelayTimer -= dt;
+        this.stairPursuitTimer = Math.max(0, this.stairPursuitTimer - dt);
 
         const player = this.findPlayer();
         if (!player) {
-            super.update();
+            this.finalizeUpdate(wasGrounded);
             return;
         }
 
-        const playerCenterX = player.x + (player.width / 2);
-        const enemyCenterX = this.x + (this.width / 2);
-        const centerDx = playerCenterX - enemyCenterX;
-        const dy = player.y - this.y;
-        const horizontalDist = Math.abs(centerDx);
-        const horizontalGap = Math.max(
-            0,
-            Math.max(
-                player.x - (this.x + this.width),
-                this.x - (player.x + player.width)
-            )
-        );
-        const verticalDist = Math.abs(dy);
-        const playerOnSlope = this.isOnSlope(player);
-        const enemyOnSlope = this.isOnSlope(this);
-        const verticalLimit = (playerOnSlope || enemyOnSlope) ? this.stairVerticalAwareness : this.verticalAwareness;
-        let sameFloor = verticalDist <= verticalLimit;
-
-        // If player is fully on upper floor and enemy is still below, stop aggro.
-        // Do not block aggro while player/enemy is still transitioning on stairs.
-        if (!playerOnSlope && !enemyOnSlope &&
-            player.y <= this.secondFloorY && this.y > this.secondFloorY + 40) {
-            sameFloor = false;
-        }
-        const canEngage = this.canEngagePlayer(player, {
-            sameFloor,
-            playerOnSlope,
-            enemyOnSlope,
+        const {
+            canSeePlayer,
+            targetPos,
+            centerDx,
             horizontalDist,
             horizontalGap,
-            verticalDist,
-            centerDx
-        });
+            canEngage,
+            targetReached
+        } = this.getTargetContext(player);
 
-        var faced = this.facing;
-        this.facing = centerDx < 0 ? "left" : "right";
-        if (this.facing !== faced) {
-            this.animator.setDirection(this.facing);
+        if (targetPos) {
+            var faced = this.facing;
+            this.facing = centerDx < 0 ? "left" : "right";
+            if (this.facing !== faced) {
+                this.animator.setDirection(this.facing);
+            }
         }
 
-        if (!canEngage || horizontalDist > this.aggroRange) {
+        // If no viable target and haven't seen player, go idle
+        if (!targetPos || !canEngage || (horizontalDist > this.aggroRange && !this.hasSeenPlayer)) {
             if (this.state !== "idle") {
                 this.state = "idle";
                 this.animator.setAnimation(this.idleAnimation, this.facing, true);
             }
             this.vx = 0;
         }
+        else if (!canSeePlayer) {
+            if (targetReached) {
+                this.clearTargetMemory();
+                if (this.state !== "idle") {
+                    this.state = "idle";
+                    this.animator.setAnimation(this.idleAnimation, this.facing, true);
+                }
+                this.vx = 0;
+            } else {
+                if (this.state !== "chase") {
+                    this.state = "chase";
+                    this.animator.setAnimation(this.chaseAnimation, this.facing, true);
+                }
+
+                let dir = 0;
+                if (centerDx > this.horizontalDeadzone) dir = 1;
+                else if (centerDx < -this.horizontalDeadzone) dir = -1;
+                this.vx = dir * this.speed;
+            }
+        }
         else if (horizontalGap > this.attackRange) {
+            // Chase towards target position (either player or last seen position)
             if (this.state !== "chase") {
                 this.state = "chase";
+                this.alertTimer = 0.7;
                 this.animator.setAnimation(this.chaseAnimation, this.facing, true);
             }
+            
             let dir = 0;
             if (centerDx > this.horizontalDeadzone) dir = 1;
             else if (centerDx < -this.horizontalDeadzone) dir = -1;
             this.vx = dir * this.speed;
         }
         else {
-            if (this.state !== "attack") {
-                this.state = "attack";
+            // In attack range
+            if (this.state !== "waitingToAttack" && this.state !== "attacking") {
+                this.state = "waitingToAttack";
+                this.attackDelayTimer = this.attackDelay;
                 this.animator.setAnimation(this.attackAnimation, this.facing, true);
             }
             this.vx = 0;
-            if (this.attackTimer <= 0) {
-                this.performAttack();
+
+            // Handle attack delay and cooldown
+            if (this.state === "waitingToAttack") {
+                if (this.attackDelayTimer <= 0) {
+                    this.state = "attacking";
+                    this.performAttack();
+                }
+            }
+            else if (this.state === "attacking") {
+                if (this.attackTimer <= 0) {
+                    this.performAttack();
+                }
             }
         }
 
-        // Apply physics
-        super.update();
-
-        // Tilemap collision detection AFTER physics
-        this.handleTileCollision();
-
-        if (wasGrounded && !this.grounded) {
-            this.wasFalling = true;
-        }
-        if (this.grounded) {
-            this.wasFalling = false;
-        }
+        this.finalizeUpdate(wasGrounded);
     }
 
     handleTileCollision() {
@@ -345,6 +597,21 @@ class Enemy extends Actor {
 
     draw(ctx, game) {
         this.animator.draw(ctx, this.x, this.y);
+
+        if (this.alertTimer > 0) {
+            ctx.save();
+            ctx.font = "bold 20px Arial";
+            ctx.textAlign = "center";
+            ctx.textBaseline = "bottom";
+            ctx.fillStyle = "#ffdd00";
+            ctx.strokeStyle = "#000";
+            ctx.lineWidth = 3;
+            const tx = this.x + this.width / 2;
+            const ty = this.y - 6;
+            ctx.strokeText("!", tx, ty);
+            ctx.fillText("!", tx, ty);
+            ctx.restore();
+        }
     }
 }
 

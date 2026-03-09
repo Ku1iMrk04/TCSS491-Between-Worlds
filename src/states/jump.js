@@ -14,8 +14,8 @@ class Jump extends State {
         if (entity.animator) {
             try {
                 // Try to set jump animation, but use idle if it doesn't exist
-                if (entity.animator.spriteAtlas && entity.animator.spriteAtlas.hasAnimation("jump")) {
-                    entity.animator.setAnimation("jump", entity.facing, false);
+                if (entity.animator.spriteAtlas && entity.animator.spriteAtlas.hasAnimation("airborne")) {
+                    entity.animator.setAnimation("airborne", entity.facing, false);
                 } else {
                     // Use idle animation as fallback for jumping
                     entity.animator.setAnimation("idle", entity.facing, true);
