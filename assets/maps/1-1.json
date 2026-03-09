@@ -109,7 +109,7 @@
          "image":"..\/prison_foreground.png",
          "imageheight":896,
          "imagewidth":865,
-         "margin":0,
+         "margin":0, 
          "name":"FGPRISON",
          "spacing":0,
          "tilecount":756,

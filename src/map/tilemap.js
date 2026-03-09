@@ -483,7 +483,7 @@ class TileMap {
      * Get spawn point for player (hardcoded for this map)
      */
     getPlayerSpawn() {
-        return { x: 160, y: 256 };
+        return { x: 67, y: 504 };
     }
 
     /**
@@ -594,6 +594,13 @@ class TileMap {
         const layer = this.layers[layerName];
         if (!layer) return;
 
+        // Disable image smoothing for crisp pixel art (nearest-neighbor filtering)
+        ctx.save();
+        ctx.imageSmoothingEnabled = false;
+        ctx.webkitImageSmoothingEnabled = false;
+        ctx.mozImageSmoothingEnabled = false;
+        ctx.msImageSmoothingEnabled = false;
+
         for (let y = 0; y < this.height; y++) {
             for (let x = 0; x < this.width; x++) {
                 const gid = layer[y][x];
@@ -612,6 +619,8 @@ class TileMap {
                 );
             }
         }
+
+        ctx.restore();
     }
 
     drawBackground(ctx) {

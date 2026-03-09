@@ -49,6 +49,9 @@ export class GameEngine {
         this.leftMouseDown = false;
         this.leftMouseReleased = false;
 
+        // Hitbox visualization toggle
+        this.showHitboxes = false;
+
         // Options and the Details
         this.options = options || {
             debugging: false,
@@ -155,6 +158,11 @@ export class GameEngine {
                     break;
                 case "KeyE":
                     this.eKey = true;
+                    break;
+                case "KeyH":
+                    // Toggle hitbox visualization
+                    this.showHitboxes = !this.showHitboxes;
+                    console.log("Hitbox visualization:", this.showHitboxes ? "ON" : "OFF");
                     break;
             }
         });

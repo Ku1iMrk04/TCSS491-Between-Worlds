@@ -5,7 +5,7 @@ class Attack extends State {
     constructor() {
         super();
         this.hitbox = null;
-        this.attackDuration = 0.3;  // How long the attack lasts (seconds)
+        this.attackDuration = 0.4;  // How long the attack lasts (seconds)
         this.attackTimer = 0;
         this.dashSpeed = 800;   // Peak lunge speed at start of attack
         this.lungeDuration = 0.15;  // How long the lunge deceleration lasts

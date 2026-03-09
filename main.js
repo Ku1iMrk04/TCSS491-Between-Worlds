@@ -11,6 +11,7 @@ const mapLoader = new MapLoader();
 
 const ASSET_MANAGER = new AssetManager();
 // Sprite sheets with animations (will load .json metadata)
+ASSET_MANAGER.queueSprite("assets/ninja.png");
 ASSET_MANAGER.queueSprite("assets/zero.png");
 ASSET_MANAGER.queueSprite("assets/enemy_scientist.png");
 ASSET_MANAGER.queueSprite("assets/grunt_idle.png");
