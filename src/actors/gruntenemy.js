@@ -3,8 +3,11 @@ import Animator from "../animation/animator.js";
 
 const GRUNT_HEALTH = 55;
 const GRUNT_BASE_SPEED = 35;
-const GRUNT_SPEED_MULTIPLIER = 2;
+const GRUNT_SPEED_MULTIPLIER = 4;
 const GRUNT_SPEED = GRUNT_BASE_SPEED * GRUNT_SPEED_MULTIPLIER;
+const GRUNT_ATTACK_DELAY = 1.0; // 1 second delay before attacking
+const GRUNT_ATTACK_COOLDOWN = 1.0; // 1 second cooldown after attack
+const GRUNT_VISION_RANGE = 420; // Same as default
 
 class GruntEnemy extends Enemy {
     constructor(game, x, y) {
@@ -14,6 +17,12 @@ class GruntEnemy extends Enemy {
         // Slightly tankier and faster than scientist enemy.
         this.health = GRUNT_HEALTH;
         this.speed = GRUNT_SPEED;
+
+        // Melee attack timing
+        this.attackDelay = GRUNT_ATTACK_DELAY;
+        this.attackCooldown = GRUNT_ATTACK_COOLDOWN;
+        this.visionRange = GRUNT_VISION_RANGE;
+        // Default visionAngle of 180 (90 degree cone on each side) is fine
 
         // Idle uses grunt sprite. Missing walk/attack animations fall back to NoSpriteBudda.
         this.animator = new Animator("grunt_idle", this.game.assetManager);
