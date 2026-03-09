@@ -119,9 +119,12 @@ class DashStrike extends State {
 
         entity.game.addEntity(hitbox);
 
-        // Screen shake on dash strike impact
+        // Screen shake + hit freeze on dash strike impact
         if (entity.game.camera) {
             entity.game.camera.shake(8, 0.2);
+        }
+        if (entity.game.freeze) {
+            entity.game.freeze(0.1);
         }
     }
 }

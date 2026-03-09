@@ -1,22 +1,90 @@
 import Scene from "./scene.js";
 import GameScene from "./gamescene.js";
+import { drawOverlay } from "../ui/MenuOverlays.js";
 
 class MenuScene extends Scene {
     constructor(game, menuBgImage, levelBgImage) {
         super(game);
-        this.menuBgImage = menuBgImage;
+        this.menuBgImage  = menuBgImage;
         this.levelBgImage = levelBgImage;
-        this.options = ["Start Game", "Manual"];
+        this.options      = ["Start Game", "How to Play", "Credits"];
         this.selectedIndex = 0;
 
-        this.showManual = false;
-        this.buttonRects = [];
+        // "howtoplay" | "credits" | null
+        this.overlay = null;
+        this.closeBtnRect = null;
+
+        this.buttonRects  = [];
         this.hoveredIndex = -1;
-        this.hoverScales = this.options.map(() => 0); // 0 = normal, 1 = fully hovered
+        this.hoverScales  = this.options.map(() => 0);
+        this.elapsed      = 0;
+
+        // Floating dream particles
+        this.particles = [];
+        for (let i = 0; i < 55; i++) {
+            this.particles.push(this._spawnParticle(true));
+        }
+
+        // Volume slider
+        this.sliderDragging = false;
+        this.sliderRect = null;
+    }
+
+    _spawnParticle(randomY = false) {
+        const colors = ["#c084fc", "#e879f9", "#a855f7", "#ffffff", "#9333ea"];
+        return {
+            x:         Math.random() * 1920,
+            y:         randomY ? Math.random() * 1080 : 1100,
+            vx:        (Math.random() - 0.5) * 28,
+            vy:        -(22 + Math.random() * 55),
+            r:         1.5 + Math.random() * 2.5,
+            alpha:     0.35 + Math.random() * 0.55,
+            life:      Math.random(),
+            lifeSpeed: 0.0018 + Math.random() * 0.004,
+            color:     colors[Math.floor(Math.random() * colors.length)],
+        };
+    }
+
+    update() {
+        const dt = this.game.clockTick;
+        this.elapsed += dt;
+
+        // Volume slider drag
+        const mouse = this.game.mouse;
+        const isDown = this.game.leftMouseDown;
+        if (!isDown) {
+            this.sliderDragging = false;
+        } else if (mouse && this.sliderRect) {
+            const r = this.sliderRect;
+            if (!this.sliderDragging) {
+                if (mouse.x >= r.x - 10 && mouse.x <= r.x + r.w + 10 &&
+                    mouse.y >= r.y - 12 && mouse.y <= r.y + r.h + 12) {
+                    this.sliderDragging = true;
+                }
+            }
+            if (this.sliderDragging && this.game.musicManager) {
+                const ratio = Math.max(0, Math.min(1, (mouse.x - r.x) / r.w));
+                this.game.musicManager.setVolume(ratio);
+            }
+        }
+
+        for (const p of this.particles) {
+            p.x += p.vx * dt;
+            p.y += p.vy * dt;
+            p.life += p.lifeSpeed;
+            p.vx += (Math.random() - 0.5) * 3 * dt;
+            p.vx = Math.max(-35, Math.min(35, p.vx));
+            if (p.y < -20 || p.life > 1) {
+                Object.assign(p, this._spawnParticle(false));
+            }
+        }
     }
 
     onKeyDown(event) {
-        
+        if (this.overlay) {
+            if (event.code === "Escape") this.overlay = null;
+            return;
+        }
         switch (event.code) {
             case "ArrowUp":
                 this.selectedIndex = (this.selectedIndex + this.options.length - 1) % this.options.length;
@@ -31,6 +99,15 @@ class MenuScene extends Scene {
     }
 
     onClick(x, y) {
+        if (this.overlay) {
+            if (this.closeBtnRect) {
+                const r = this.closeBtnRect;
+                if (x >= r.x && x <= r.x + r.w && y >= r.y && y <= r.y + r.h) {
+                    this.overlay = null;
+                }
+            }
+            return;
+        }
         for (let i = 0; i < this.buttonRects.length; i++) {
             const r = this.buttonRects[i];
             if (x >= r.x && x <= r.x + r.w && y >= r.y && y <= r.y + r.h) {
@@ -43,162 +120,210 @@ class MenuScene extends Scene {
 
     activateSelection() {
         if (this.selectedIndex === 0) {
-
             this.game.sceneManager.changeScene(new GameScene(this.game, this.levelBgImage, 0));
-        } else {
-            this.showManual = !this.showManual;
+        } else if (this.selectedIndex === 1) {
+            this.overlay = "howtoplay";
+        } else if (this.selectedIndex === 2) {
+            this.overlay = "credits";
         }
     }
 
     draw(ctx) {
-        const w = ctx.canvas.width;
-        const h = ctx.canvas.height;
-        const centerX = w / 2;
+        const w  = ctx.canvas.width;
+        const h  = ctx.canvas.height;
+        const cx = w / 2;
 
-        // Background image
+        // Background
         if (this.menuBgImage) {
             ctx.drawImage(this.menuBgImage, 0, 0, w, h);
         } else {
-            ctx.fillStyle = "black";
+            ctx.fillStyle = "#0d0010";
             ctx.fillRect(0, 0, w, h);
         }
 
-        // Dark overlay for readability
-        ctx.fillStyle = "rgba(0,0,0,0.35)";
+        // Dark overlay + purple vignette
+        ctx.fillStyle = "rgba(0,0,0,0.48)";
         ctx.fillRect(0, 0, w, h);
 
-        ctx.textAlign = "center";
-        ctx.textBaseline = "alphabetic";
+        const vignette = ctx.createRadialGradient(cx, h * 0.5, h * 0.18, cx, h * 0.5, h * 0.9);
+        vignette.addColorStop(0, "rgba(0,0,0,0)");
+        vignette.addColorStop(1, "rgba(20,0,40,0.78)");
+        ctx.fillStyle = vignette;
+        ctx.fillRect(0, 0, w, h);
+
+        // Particles
+        for (const p of this.particles) {
+            const fade = Math.sin(p.life * Math.PI);
+            ctx.save();
+            ctx.globalAlpha = p.alpha * fade;
+            ctx.shadowColor = p.color;
+            ctx.shadowBlur  = 10;
+            ctx.fillStyle   = p.color;
+            ctx.beginPath();
+            ctx.arc(p.x, p.y, p.r, 0, Math.PI * 2);
+            ctx.fill();
+            ctx.restore();
+        }
 
         // Title
-        ctx.fillStyle = "white";
-        ctx.font = '64px "Orbitron", sans-serif';
-        ctx.fillText("BETWEEN WORLDS", centerX, h / 2 - 120);
+        const glowA = 14 + Math.sin(this.elapsed * 1.6) * 10;
+        const glowB = 24 + Math.sin(this.elapsed * 1.6 + 0.7) * 8;
 
-        // Menu options
+        ctx.save();
+        ctx.textAlign    = "center";
+        ctx.textBaseline = "alphabetic";
+        ctx.font = '700 72px "Orbitron", sans-serif';
+
+        ctx.shadowColor = "#7c3aed";
+        ctx.shadowBlur  = glowB;
+        ctx.fillStyle   = "rgba(180,120,255,0.25)";
+        ctx.fillText("BETWEEN WORLDS", cx, h / 2 - 170);
+
+        ctx.shadowColor = "#c084fc";
+        ctx.shadowBlur  = glowA;
+        ctx.fillStyle   = "#ffffff";
+        ctx.fillText("BETWEEN WORLDS", cx, h / 2 - 170);
+        ctx.restore();
+
+        // Buttons
+        this._drawButtons(ctx, h, cx);
+
+        // Volume slider
+        this._drawVolumeSlider(ctx, cx, h);
+
+        // Footer
+        ctx.save();
+        ctx.fillStyle    = "rgba(192,132,252,0.55)";
+        ctx.font         = '15px "Oxanium", sans-serif';
+        ctx.textAlign    = "center";
+        ctx.textBaseline = "alphabetic";
+        ctx.fillText("↑ ↓ Arrow Keys + Enter  |  or Click", cx, h - 36);
+        ctx.restore();
+
+        // Overlay (How to Play / Credits)
+        if (this.overlay) {
+            this.closeBtnRect = drawOverlay(ctx, w, h, this.overlay);
+        }
+
+        ctx.textAlign = "left";
+    }
+
+    _drawVolumeSlider(ctx, cx, h) {
+        const sliderW = 240;
+        const sliderH = 8;
+        const sliderX = cx - sliderW / 2;
+        const sliderY = h - 90;
+        this.sliderRect = { x: sliderX, y: sliderY, w: sliderW, h: sliderH };
+
+        const vol = this.game.musicManager ? this.game.musicManager.volume : 0.4;
+        const thumbX = sliderX + vol * sliderW;
+
+        ctx.save();
+
+        // Label
+        ctx.textAlign = "center";
+        ctx.textBaseline = "alphabetic";
+        ctx.font = '600 13px "Oxanium", sans-serif';
+        ctx.fillStyle = "rgba(192,132,252,0.65)";
+        ctx.fillText("MUSIC VOL", cx, sliderY - 12);
+
+        // Track background
+        ctx.beginPath();
+        ctx.roundRect(sliderX, sliderY, sliderW, sliderH, 4);
+        ctx.fillStyle = "rgba(20,5,45,0.7)";
+        ctx.fill();
+        ctx.strokeStyle = "rgba(120,70,180,0.45)";
+        ctx.lineWidth = 1;
+        ctx.stroke();
+
+        // Filled portion
+        if (vol > 0) {
+            ctx.beginPath();
+            ctx.roundRect(sliderX, sliderY, vol * sliderW, sliderH, 4);
+            ctx.fillStyle = "#a855f7";
+            ctx.fill();
+        }
+
+        // Thumb
+        ctx.beginPath();
+        ctx.arc(thumbX, sliderY + sliderH / 2, 8, 0, Math.PI * 2);
+        ctx.fillStyle = "#e9d5ff";
+        ctx.shadowColor = "#c084fc";
+        ctx.shadowBlur = 10;
+        ctx.fill();
+        ctx.shadowBlur = 0;
+
+        // Percentage
+        ctx.font = '13px "Oxanium", sans-serif';
+        ctx.fillStyle = "rgba(220,180,255,0.55)";
+        ctx.fillText(`${Math.round(vol * 100)}%`, cx, sliderY + sliderH + 20);
+
+        ctx.restore();
+    }
+
+    _drawButtons(ctx, h, cx) {
+        ctx.textAlign    = "center";
+        ctx.textBaseline = "alphabetic";
         ctx.font = '36px "Oxanium", sans-serif';
-        const startY = h / 2 - 20;
-        const lineH = 80;
-        const btnW = 360;
-        const btnH = 60;
 
-        this.buttonRects = [];
+        const startY = h / 2 - 10;
+        const lineH  = 92;
+        const btnW   = 420;
+        const btnH   = 66;
 
-        // Detect which button the mouse is hovering over
-        const mouse = this.game.mouse;
+        this.buttonRects  = [];
         this.hoveredIndex = -1;
+
+        const mouse = this.game.mouse;
         if (mouse) {
-            const mx = mouse.x;
-            const my = mouse.y;
             for (let i = 0; i < this.options.length; i++) {
-                const y = startY + i * lineH;
-                const bx = centerX - btnW / 2;
-                const by = y - btnH / 2 - 8;
-                if (mx >= bx && mx <= bx + btnW && my >= by && my <= by + btnH) {
-                    this.hoveredIndex = i;
+                const bx = cx - btnW / 2;
+                const by = startY + i * lineH - btnH / 2 - 8;
+                if (mouse.x >= bx && mouse.x <= bx + btnW && mouse.y >= by && mouse.y <= by + btnH) {
+                    this.hoveredIndex  = i;
                     this.selectedIndex = i;
                 }
             }
         }
 
-        // Animate hover scales smoothly
-        const speed = 0.1;
         for (let i = 0; i < this.options.length; i++) {
             const target = (i === this.hoveredIndex || i === this.selectedIndex) ? 1 : 0;
-            this.hoverScales[i] += (target - this.hoverScales[i]) * speed;
+            this.hoverScales[i] += (target - this.hoverScales[i]) * 0.12;
         }
 
         for (let i = 0; i < this.options.length; i++) {
-            const y = startY + i * lineH;
-            const btnX = centerX - btnW / 2;
+            const y    = startY + i * lineH;
+            const btnX = cx - btnW / 2;
             const btnY = y - btnH / 2 - 8;
-            const t = this.hoverScales[i];
-            const isHovered = i === this.hoveredIndex;
-            const isSelected = i === this.selectedIndex;
-
-            // Smooth scale: grows slightly on hover
-            const scale = 1 + t * 0.06;
+            const t    = this.hoverScales[i];
+            const scale = 1 + t * 0.05;
 
             ctx.save();
-            ctx.translate(centerX, btnY + btnH / 2);
+            ctx.translate(cx, btnY + btnH / 2);
             ctx.scale(scale, scale);
-            ctx.translate(-centerX, -(btnY + btnH / 2));
+            ctx.translate(-cx, -(btnY + btnH / 2));
 
-            // Button background with animated opacity
-            const bgAlpha = 0.08 + t * 0.14;
-            const borderAlpha = 0.3 + t * 0.5;
-            ctx.fillStyle = `rgba(255,255,255,${bgAlpha})`;
-            ctx.strokeStyle = `rgba(255,255,255,${borderAlpha})`;
-            ctx.lineWidth = 2;
+            ctx.fillStyle   = `rgba(${20 + Math.round(70 * t)}, 0, ${40 + Math.round(100 * t)}, ${0.08 + t * 0.2})`;
+            ctx.strokeStyle = `rgba(${140 + Math.round(52 * t)}, ${Math.round(60 * t)}, ${200 + Math.round(52 * t)}, ${0.35 + t * 0.55})`;
+            ctx.lineWidth   = 1.8;
             ctx.beginPath();
             ctx.roundRect(btnX, btnY, btnW, btnH, 8);
             ctx.fill();
             ctx.stroke();
 
-            // Glow effect on hover
             if (t > 0.01) {
-                ctx.shadowColor = "rgba(255,255,255," + (t * 0.4) + ")";
-                ctx.shadowBlur = t * 15;
+                ctx.shadowColor = "#c084fc";
+                ctx.shadowBlur  = t * 22;
             }
 
-            // Draw text with animated opacity
-            const textAlpha = 0.65 + t * 0.35;
-            ctx.fillStyle = `rgba(255,255,255,${textAlpha})`;
+            ctx.fillStyle   = `rgba(255,255,255,${0.68 + t * 0.32})`;
             ctx.shadowColor = "transparent";
-            ctx.shadowBlur = 0;
-            ctx.fillText(this.options[i], centerX, y);
-
+            ctx.shadowBlur  = 0;
+            ctx.fillText(this.options[i], cx, y);
             ctx.restore();
 
             this.buttonRects.push({ x: btnX, y: btnY, w: btnW, h: btnH });
         }
-
-        // Manual display
-        
-        if (this.showManual) {
-            // Box size
-            const boxW = 700;              
-            const boxH = 220;
-            const boxX = (w - boxW) / 2;   
-            const boxY = (h - boxH) / 2;   
-
-            // Draw box
-            ctx.fillStyle = "rgba(0,0,0,0.65)";
-            ctx.fillRect(boxX, boxY, boxW, boxH);
-
-            // Text settings
-            ctx.fillStyle = "white";
-            ctx.font = '18px "Oxanium", sans-serif';
-
-            // Left align *inside* the box with padding
-            const pad = 28;
-            const textX = boxX + pad;
-            let y = boxY + 40;
-            const lineH = 34;
-
-            ctx.textAlign = "left";
-            ctx.textBaseline = "alphabetic";
-
-            ctx.fillText("Manual (placeholder)", textX, y); y += lineH;
-            ctx.fillText("-Player: 50 hp, Hit enemy twice to kill | Enemy: 40hp, 5 hits to defeat Player ", textX, y); y += lineH;
-
-            ctx.fillText("- Gameplay controls: Use arrow keys to move, space bar to attack,", textX, y); y += lineH;
-            ctx.fillText("  more features coming soon.", textX, y); y += lineH;
-
-            ctx.fillText("- Dream World / map features coming soon", textX, y); y += lineH
-
-            ctx.fillText("- Goal: You must defeat all enemies and survive to escape the dream world!", textX, y);
-        }
-        // Footer
-        ctx.save();
-        ctx.fillStyle = "rgba(255,255,255,0.75)";
-        ctx.font = '16px "Oxanium", sans-serif';
-        ctx.textAlign = "center";
-        ctx.textBaseline = "alphabetic";
-        ctx.fillText("Use ↑ ↓ and Enter, OR Click", w / 2, h - 40);
-        ctx.restore();  
-
-        ctx.textAlign = "left";
     }
 }
 

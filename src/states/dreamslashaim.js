@@ -55,14 +55,11 @@ class DreamSlashAim extends State {
             const dy = this.targetWorldY - playerCenterY;
             const dist = Math.hypot(dx, dy);
 
-            // Clamp to max distance
-            if (dist > this.maxDashDistance) {
-                entity.dreamSlashTargetX = playerCenterX + (dx / dist) * this.maxDashDistance;
-                entity.dreamSlashTargetY = playerCenterY + (dy / dist) * this.maxDashDistance;
-            } else {
-                entity.dreamSlashTargetX = this.targetWorldX;
-                entity.dreamSlashTargetY = this.targetWorldY;
-            }
+            // Always dash exactly maxDashDistance in the direction of the cursor
+            const dirX = dist > 0 ? dx / dist : 1;
+            const dirY = dist > 0 ? dy / dist : 0;
+            entity.dreamSlashTargetX = playerCenterX + dirX * this.maxDashDistance;
+            entity.dreamSlashTargetY = playerCenterY + dirY * this.maxDashDistance;
 
             entity.changeState("dreamslash");
             return;
@@ -86,7 +83,7 @@ class DreamSlashAim extends State {
         const dx = this.targetWorldX - playerCenterX;
         const dy = this.targetWorldY - playerCenterY;
         const dist = Math.hypot(dx, dy);
-        const clampedDist = Math.min(dist, this.maxDashDistance);
+        const clampedDist = this.maxDashDistance;
 
         // Direction
         const dirX = dist > 0 ? dx / dist : 0;

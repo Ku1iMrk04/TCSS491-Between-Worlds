@@ -46,6 +46,10 @@ class GameScene extends Scene {
         this.showPauseControls = false;
         this.ui.startLevel();
 
+        if (this.game.musicManager) {
+            this.game.musicManager.play("gameplay");
+        }
+
         // Load the map for this level
         if (this.game.levelMaps && this.game.levelMaps[this.levelIndex]) {
             this.game.tileMap = this.game.levelMaps[this.levelIndex];
@@ -82,7 +86,21 @@ class GameScene extends Scene {
         }
     }
 
+    exit() {
+        if (this.game.musicManager) {
+            this.game.musicManager.stop();
+        }
+    }
+
     onKeyDown(event) {
+        if (event.code === "Escape") {
+            if (this.isPaused) {
+                this.resumeGameplay();
+            } else {
+                this.pauseGameplay();
+            }
+            return;
+        }
         if (event.code === "KeyR") {
             this.game.sceneManager.changeScene(new MenuScene(this.game, this.game.menuBgImage, this.levelBgImage));
         }
