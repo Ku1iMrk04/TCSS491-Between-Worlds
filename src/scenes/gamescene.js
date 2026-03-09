@@ -18,10 +18,10 @@ const PAUSE_OPTION_CONTROLS = "Controls";
 // Per-level player spawn positions (x, y in world pixels).
 // Adjust these if a level's starting position feels wrong.
 const LEVEL_SPAWN_POINTS = [
-    { x: 160, y: 256 },   // Level 1
-    { x: 160, y: 256 },   // Level 2
-    { x: 400, y: 820 },   // Level 3 (starts below ceiling at row 20)
-    { x: 160, y: 256 },   // Level 4
+    { x: 160, y: 498 },   // Level 1 - floor at row 18 (y=576), player height 78px
+    { x: 160, y: 498 },   // Level 2 - same floor layout
+    { x: 400, y: 820 },   // Level 3
+    { x: 160, y: 498 },   // Level 4
 ];
 
 class GameScene extends Scene {
