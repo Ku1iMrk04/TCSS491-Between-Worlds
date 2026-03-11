@@ -21,6 +21,9 @@ ASSET_MANAGER.queueSprite("assets/gangsteridle_3.png");
 ASSET_MANAGER.queueDownload("assets/menu_background.png");
 ASSET_MANAGER.queueDownload("assets/level_background.png");
 
+// Debug images
+ASSET_MANAGER.queueDownload("assets/Frame3Attack.png");
+
 // Fallback image for missing animations
 ASSET_MANAGER.queueDownload("assets/NoSpriteBudda.png");
 // Tileset images for the prison map
