@@ -3,9 +3,34 @@ import State from "./state.js";
 class DreamSlashAim extends State {
     constructor() {
         super();
-        this.targetWorldX = 0;
-        this.targetWorldY = 0;
         this.maxDashDistance = 300;
+        this.dirX = 1;
+        this.dirY = 0;
+    }
+
+    _getDirFromInput() {
+        const entity = this.myEntity;
+        const game = entity.game;
+
+        let dx = 0, dy = 0;
+        if (game.left) dx = -1;
+        else if (game.right) dx = 1;
+        if (game.up) dy = -1;
+        else if (game.down) dy = 1;
+
+        // Default to facing direction if no directional input
+        if (dx === 0 && dy === 0) {
+            dx = entity.facing === "left" ? -1 : 1;
+        }
+
+        // Normalize diagonal
+        if (dx !== 0 && dy !== 0) {
+            const len = Math.SQRT2;
+            dx /= len;
+            dy /= len;
+        }
+
+        return { dx, dy };
     }
 
     enter() {
@@ -21,6 +46,11 @@ class DreamSlashAim extends State {
         // Freeze player movement
         entity.vx = 0;
 
+        // Initialize direction from current input
+        const { dx, dy } = this._getDirFromInput();
+        this.dirX = dx;
+        this.dirY = dy;
+
         // Set animation
         if (entity.animator) {
             entity.animator.setAnimation("idle", entity.facing, true);
@@ -34,15 +64,10 @@ class DreamSlashAim extends State {
         // Keep player frozen during aim
         entity.vx = 0;
 
-        // Track mouse position in world coordinates continuously
-        const mouse = game.mouse || game.click;
-        if (mouse) {
-            const screenX = mouse.x / 2;
-            const screenY = mouse.y / 2;
-            const worldMouse = game.camera.screenToWorld(screenX, screenY);
-            this.targetWorldX = worldMouse.x;
-            this.targetWorldY = worldMouse.y;
-        }
+        // Update direction from WASD input continuously
+        const { dx, dy } = this._getDirFromInput();
+        this.dirX = dx;
+        this.dirY = dy;
 
         // Check for mouse release — use raw time so it's responsive
         if (game.leftMouseReleased) {
@@ -51,15 +76,8 @@ class DreamSlashAim extends State {
             // Store the target on the entity for DreamSlash to use
             const playerCenterX = entity.x + entity.width / 2;
             const playerCenterY = entity.y + entity.height / 2;
-            const dx = this.targetWorldX - playerCenterX;
-            const dy = this.targetWorldY - playerCenterY;
-            const dist = Math.hypot(dx, dy);
-
-            // Always dash exactly maxDashDistance in the direction of the cursor
-            const dirX = dist > 0 ? dx / dist : 1;
-            const dirY = dist > 0 ? dy / dist : 0;
-            entity.dreamSlashTargetX = playerCenterX + dirX * this.maxDashDistance;
-            entity.dreamSlashTargetY = playerCenterY + dirY * this.maxDashDistance;
+            entity.dreamSlashTargetX = playerCenterX + this.dirX * this.maxDashDistance;
+            entity.dreamSlashTargetY = playerCenterY + this.dirY * this.maxDashDistance;
 
             entity.changeState("dreamslash");
             return;
@@ -80,17 +98,8 @@ class DreamSlashAim extends State {
         const playerCenterX = entity.x + entity.width / 2;
         const playerCenterY = entity.y + entity.height / 2;
 
-        const dx = this.targetWorldX - playerCenterX;
-        const dy = this.targetWorldY - playerCenterY;
-        const dist = Math.hypot(dx, dy);
-        const clampedDist = this.maxDashDistance;
-
-        // Direction
-        const dirX = dist > 0 ? dx / dist : 0;
-        const dirY = dist > 0 ? dy / dist : 0;
-
-        const endX = playerCenterX + dirX * clampedDist;
-        const endY = playerCenterY + dirY * clampedDist;
+        const endX = playerCenterX + this.dirX * this.maxDashDistance;
+        const endY = playerCenterY + this.dirY * this.maxDashDistance;
 
         ctx.save();
 

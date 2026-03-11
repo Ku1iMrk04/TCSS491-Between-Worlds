@@ -164,27 +164,24 @@ class Player extends Actor {
             // Attack input with left click (can attack mid-air)
             if (this.game.click && this.currentState !== this.states["attack"] && this.currentState !== this.states["roll"]) {
                 if (this.inDreamState && this.dreamSlashCooldownTimer <= 0) {
-                    // Instantly set target from current mouse position and dash
-                    const mouse = this.game.mouse || this.game.click;
+                    // Compute dash direction from WASD input (same as normal attack)
                     const maxDist = this.states["dreamslashaim"].maxDashDistance;
-                    if (mouse) {
-                        const screenX = mouse.x / 2;
-                        const screenY = mouse.y / 2;
-                        const worldMouse = this.game.camera.screenToWorld(screenX, screenY);
-                        const cx = this.x + this.width / 2;
-                        const cy = this.y + this.height / 2;
-                        const dx = worldMouse.x - cx;
-                        const dy = worldMouse.y - cy;
-                        const dist = Math.hypot(dx, dy);
-                        const dirX = dist > 0 ? dx / dist : 1;
-                        const dirY = dist > 0 ? dy / dist : 0;
-                        this.dreamSlashTargetX = cx + dirX * maxDist;
-                        this.dreamSlashTargetY = cy + dirY * maxDist;
-                    } else {
-                        // Fallback: dash in facing direction
-                        this.dreamSlashTargetX = this.x + this.width / 2 + (this.facing === "right" ? maxDist : -maxDist);
-                        this.dreamSlashTargetY = this.y + this.height / 2;
+                    let dx = 0, dy = 0;
+                    if (this.game.left) dx = -1;
+                    else if (this.game.right) dx = 1;
+                    if (this.game.up) dy = -1;
+                    else if (this.game.down) dy = 1;
+                    if (dx === 0 && dy === 0) {
+                        dx = this.facing === "left" ? -1 : 1;
                     }
+                    if (dx !== 0 && dy !== 0) {
+                        dx /= Math.SQRT2;
+                        dy /= Math.SQRT2;
+                    }
+                    const cx = this.x + this.width / 2;
+                    const cy = this.y + this.height / 2;
+                    this.dreamSlashTargetX = cx + dx * maxDist;
+                    this.dreamSlashTargetY = cy + dy * maxDist;
                     this.changeState("dreamslash");
                 } else {
                     this.changeState("attack");
