@@ -1,10 +1,8 @@
 import Enemy from "./enemy.js";
 import Animator from "../animation/animator.js";
 
-const GRUNT_HEALTH = 55;
-const GRUNT_BASE_SPEED = 35;
-const GRUNT_SPEED_MULTIPLIER = 4;
-const GRUNT_SPEED = GRUNT_BASE_SPEED * GRUNT_SPEED_MULTIPLIER;
+const GRUNT_HEALTH = 1;
+const GRUNT_SPEED = 325; // Faster than the player (275 px/s)
 const GRUNT_ATTACK_DELAY = 1.0; // 1 second delay before attacking
 const GRUNT_ATTACK_COOLDOWN = 1.0; // 1 second cooldown after attack
 const GRUNT_VISION_RANGE = 420; // Same as default

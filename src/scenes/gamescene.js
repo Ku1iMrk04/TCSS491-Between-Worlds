@@ -18,11 +18,22 @@ const PAUSE_OPTION_CONTROLS = "Controls";
 // Per-level player spawn positions (x, y in world pixels).
 // Adjust these if a level's starting position feels wrong.
 const LEVEL_SPAWN_POINTS = [
-    { x: 160, y: 498 },   // Level 1 - floor at row 18 (y=576), player height 78px
-    { x: 160, y: 498 },   // Level 2 - same floor layout
-    { x: 400, y: 820 },   // Level 3
+    { x: 160, y: 498 },   // Level 1
+    { x: 160, y: 498 },   // Level 2
+    { x: 34,  y: 1430 },  // Level 3
     { x: 160, y: 498 },   // Level 4
 ];
+
+// Exit portal positions per level (x, y in world pixels, center of portal).
+// After all enemies are defeated the player must reach this point to finish the level.
+const LEVEL_EXIT_POINTS = [
+    { x: 2210, y: 584 },  // Level 1
+    { x: 2270, y: 580 },  // Level 2
+    { x: 2270, y: 1200 }, // Level 3
+    null,                  // Level 4 – kills all enemies to complete (no exit point yet)
+];
+
+const EXIT_PORTAL_RADIUS = 80;   // pixels from portal center that triggers level complete
 
 class GameScene extends Scene {
     constructor(game, levelBgImage, levelIndex = 0) {
@@ -33,6 +44,8 @@ class GameScene extends Scene {
 
         this.player = null;
         this.levelCompleteTriggered = false;
+        this.allEnemiesDefeated = false;
+        this.exitAnimTime = 0;
         this.isPaused = false;
         this.showPauseControls = false;
 
@@ -42,6 +55,8 @@ class GameScene extends Scene {
     enter() {
         this.game.entities = [];
         this.levelCompleteTriggered = false;
+        this.allEnemiesDefeated = false;
+        this.exitAnimTime = 0;
         this.isPaused = false;
         this.showPauseControls = false;
         this.ui.startLevel();
@@ -141,18 +156,25 @@ class GameScene extends Scene {
             return;
         }
 
-        if (this.getAliveEnemyCount() === 0) {
-            this.levelCompleteTriggered = true;
-            const totalLevels = this.game.levelMaps ? this.game.levelMaps.length : 1;
-            const hasNextLevel = this.levelIndex + 1 < totalLevels;
-            this.game.sceneManager.changeScene(new LevelCompleteScene(
-                this.game,
-                this.levelBgImage,
-                this.levelIndex,
-                () => new GameScene(this.game, this.levelBgImage, this.levelIndex),
-                hasNextLevel ? () => new GameScene(this.game, this.levelBgImage, this.levelIndex + 1) : null,
-                () => new MenuScene(this.game, this.game.menuBgImage, this.levelBgImage)
-            ));
+        const exitPoint = LEVEL_EXIT_POINTS[this.levelIndex] ?? null;
+
+        if (!this.allEnemiesDefeated && this.getAliveEnemyCount() === 0) {
+            this.allEnemiesDefeated = true;
+            // If this level has no exit point, complete immediately (old behaviour)
+            if (!exitPoint) {
+                this._triggerLevelComplete();
+            }
+        }
+
+        if (this.allEnemiesDefeated && exitPoint && this.player) {
+            this.exitAnimTime += this.game.clockTick || 0;
+            const px = this.player.x + (this.player.width  ?? 64) / 2;
+            const py = this.player.y + (this.player.height ?? 78) / 2;
+            const dx = px - exitPoint.x;
+            const dy = py - exitPoint.y;
+            if (Math.sqrt(dx * dx + dy * dy) <= EXIT_PORTAL_RADIUS) {
+                this._triggerLevelComplete();
+            }
         }
     }
 
@@ -163,6 +185,27 @@ class GameScene extends Scene {
             entity.collider.layer === ENEMY_COLLISION_LAYER &&
             !entity.removeFromWorld
         ).length;
+    }
+
+    _triggerLevelComplete() {
+        if (this.levelCompleteTriggered) return;
+        this.levelCompleteTriggered = true;
+        const totalLevels = this.game.levelMaps ? this.game.levelMaps.length : 1;
+        const hasNextLevel = this.levelIndex + 1 < totalLevels;
+        if (hasNextLevel) {
+            // Directly load the next level
+            this.game.sceneManager.changeScene(new GameScene(this.game, this.levelBgImage, this.levelIndex + 1));
+        } else {
+            // Last level — show completion screen
+            this.game.sceneManager.changeScene(new LevelCompleteScene(
+                this.game,
+                this.levelBgImage,
+                this.levelIndex,
+                () => new GameScene(this.game, this.levelBgImage, this.levelIndex),
+                null,
+                () => new MenuScene(this.game, this.game.menuBgImage, this.levelBgImage)
+            ));
+        }
     }
 
     draw(ctx) {
@@ -197,6 +240,98 @@ class GameScene extends Scene {
 
         // Screen-space UI
         this.ui.draw(ctx, this.player);
+
+        // Screen-space exit arrow (drawn on top of UI so it's always visible)
+        if (this.allEnemiesDefeated) {
+            this._drawExitArrow(ctx);
+        }
+    }
+
+    _drawExitArrow(ctx) {
+        const exitPoint = LEVEL_EXIT_POINTS[this.levelIndex];
+        if (!exitPoint) return;
+        const cam = this.game.camera;
+        if (!cam) return;
+
+        const scale = 2;
+        const cw = ctx.canvas.width;
+        const ch = ctx.canvas.height;
+
+        // Convert exit world position → screen position
+        const sx = (exitPoint.x - cam.x) * scale;
+        const sy = (exitPoint.y - cam.y) * scale;
+
+        const pulse = Math.sin(this.exitAnimTime * 3) * 0.5 + 0.5;
+        const margin = 80;
+        const onScreen = sx >= margin && sx <= cw - margin &&
+                         sy >= margin && sy <= ch - margin;
+
+        ctx.save();
+        if (onScreen) {
+            // Bounce above the exit point
+            const bounce = Math.sin(this.exitAnimTime * 5) * 8;
+            const arrowY = sy - 80 + bounce;
+            this._drawArrowShape(ctx, sx, arrowY, Math.PI / 2, pulse);
+            ctx.font = 'bold 22px "Oxanium", sans-serif';
+            ctx.textAlign = "center";
+            ctx.textBaseline = "bottom";
+            ctx.fillStyle = `rgba(255, 215, 60, ${0.85 + pulse * 0.15})`;
+            ctx.shadowColor = "#fbbf24";
+            ctx.shadowBlur = 14;
+            ctx.fillText("GO", sx, arrowY - 36);
+        } else {
+            // Clamp direction to screen edge
+            const cx = cw / 2, cy = ch / 2;
+            const dx = sx - cx, dy = sy - cy;
+            const angle = Math.atan2(dy, dx);
+            const ew = cw / 2 - margin;
+            const eh = ch / 2 - margin;
+            const ratio = Math.max(Math.abs(dx) / ew, Math.abs(dy) / eh);
+            const px = cx + dx / ratio;
+            const py = cy + dy / ratio;
+            this._drawArrowShape(ctx, px, py, angle, pulse);
+            // "GO" label offset inward from the arrow
+            const tx = px - Math.cos(angle) * 58;
+            const ty = py - Math.sin(angle) * 58;
+            ctx.font = 'bold 20px "Oxanium", sans-serif';
+            ctx.textAlign = "center";
+            ctx.textBaseline = "middle";
+            ctx.fillStyle = `rgba(255, 215, 60, ${0.85 + pulse * 0.15})`;
+            ctx.shadowColor = "#fbbf24";
+            ctx.shadowBlur = 14;
+            ctx.fillText("GO", tx, ty);
+        }
+        ctx.restore();
+    }
+
+    _drawArrowShape(ctx, x, y, angle, pulse) {
+        const s = 26 + pulse * 4;
+        const alpha = 0.85 + pulse * 0.15;
+
+        ctx.save();
+        ctx.translate(x, y);
+        ctx.rotate(angle);
+
+        ctx.fillStyle = `rgba(255, 200, 50, ${alpha})`;
+        ctx.strokeStyle = `rgba(255, 240, 130, ${alpha * 0.7})`;
+        ctx.shadowColor = "#fbbf24";
+        ctx.shadowBlur = 14 + pulse * 10;
+        ctx.lineWidth = 1.5;
+
+        // Arrow pointing right (rotated to face the target)
+        ctx.beginPath();
+        ctx.moveTo(s,         0);           // tip
+        ctx.lineTo(s * 0.1,  -s * 0.65);   // top wing
+        ctx.lineTo(s * 0.1,  -s * 0.28);   // top inner
+        ctx.lineTo(-s * 0.75, -s * 0.28);  // back top
+        ctx.lineTo(-s * 0.75,  s * 0.28);  // back bottom
+        ctx.lineTo(s * 0.1,   s * 0.28);   // bottom inner
+        ctx.lineTo(s * 0.1,   s * 0.65);   // bottom wing
+        ctx.closePath();
+        ctx.fill();
+        ctx.stroke();
+
+        ctx.restore();
     }
 
     drawOverlay(ctx) {

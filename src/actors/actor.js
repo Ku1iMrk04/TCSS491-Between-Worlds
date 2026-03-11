@@ -13,7 +13,7 @@ class Actor {
         this.states = {};
         this.currentState = null;
         this.speed = 100;
-        this.health = 50; // changed for enemy testing
+        this.health = 1;
         this.name = "Actor";
         this.animator = null;
         this.collider = null;

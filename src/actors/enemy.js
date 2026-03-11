@@ -12,7 +12,7 @@ class Enemy extends Actor {
         this.height = 40 * this.scale;
         this.setCollider({ layer: "enemy" });
 
-        this.health = 40;
+        this.health = 1;
         this.contactDamage = 10;
         this.damage = 10;  // Damage dealt to player on contact
 
@@ -402,8 +402,9 @@ class Enemy extends Actor {
             }
         }
 
-        // If no viable target and haven't seen player, go idle
-        if (!targetPos || !canEngage || (horizontalDist > this.aggroRange && !this.hasSeenPlayer)) {
+        // Go idle only if we have no target or (haven't seen player yet AND can't engage / out of range).
+        // Once hasSeenPlayer is true the enemy always pursues regardless of floor/range limits.
+        if (!targetPos || (!this.hasSeenPlayer && (!canEngage || horizontalDist > this.aggroRange))) {
             if (this.state !== "idle") {
                 this.state = "idle";
                 this.animator.setAnimation(this.idleAnimation, this.facing, true);
@@ -598,7 +599,7 @@ class Enemy extends Actor {
     draw(ctx, game) {
         this.animator.draw(ctx, this.x, this.y);
 
-        if (this.alertTimer > 0) {
+        if (this.state !== "idle" && this.state !== "dead") {
             ctx.save();
             ctx.font = "bold 20px Arial";
             ctx.textAlign = "center";
