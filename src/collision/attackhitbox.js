@@ -132,6 +132,7 @@ class AttackHitbox {
             const slashHeight = 27 * this.owner.scale;
 
             if (this.attackDir) {
+                // Use player center as the rotation point (same as debug visualization)
                 const cx = this.owner.x + this.owner.width / 2;
                 const cy = this.owner.y + this.owner.height / 2;
 
@@ -148,8 +149,12 @@ class AttackHitbox {
                     ctx.rotate(Math.atan2(this.attackDir.y, this.attackDir.x));
                 }
 
-                // Draw from the player's near edge outward, top-aligned with player top (matching legacy)
-                this.animator.draw(ctx, -this.owner.width / 2, -this.owner.height / 2);
+                // Position sprite at distance from player center, centered vertically
+                // Adjust -this.owner.width / 1.15 to move closer/farther
+                const offsetX = -this.owner.width / 1.15;
+                const offsetY = -slashHeight / 2;  // Center vertically
+
+                this.animator.draw(ctx, offsetX, offsetY);
                 ctx.restore();
             } else {
                 // Legacy left/right: align sprite's near edge with player's near edge
