@@ -235,8 +235,10 @@ class GameScene extends Scene {
             this.game.tileMap.drawBackground(ctx);
             this.game.tileMap.drawForeground(ctx);
 
-            // DEBUG: Draw collision hitboxes
-            this.game.tileMap.drawDebug(ctx);
+            // DEBUG: Draw collision hitboxes (only when debugging is enabled)
+            if (this.game.options?.debugging) {
+                this.game.tileMap.drawDebug(ctx);
+            }
         }
 
         ctx.restore();

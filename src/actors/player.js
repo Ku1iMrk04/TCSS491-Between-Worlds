@@ -228,102 +228,71 @@ class Player extends Actor {
         const tileMap = this.game.tileMap;
         if (!tileMap) return;
 
-        // Helper: Check if any pixel in a 3-pixel wide area is solid
-        const isSolidInArea = (x, y) => {
-            return tileMap.isSolidAtWorld(x - 1, y) ||
-                   tileMap.isSolidAtWorld(x, y) ||
-                   tileMap.isSolidAtWorld(x + 1, y);
-        };
-
         // Horizontal collision (walls)
+        const headY = this.y + PLAYER_CEILING_SAMPLE_OFFSET;
+        const midY = this.y + this.height / 2;
+        const feetCheckY = this.y + this.height - PLAYER_WALL_SAMPLE_INSET;
+
         const leftFootX = this.x + PLAYER_WALL_SAMPLE_INSET;
         const rightFootX = this.x + this.width - PLAYER_WALL_SAMPLE_INSET;
         const centerFootX = this.x + (this.width / 2);
 
-        // Check left wall - scan vertically along the left edge
-        if (this.vx < 0) {
-            let hitWall = false;
-            // Check multiple points along the left edge from top to bottom
-            for (let checkY = this.y; checkY <= this.y + this.height; checkY += 8) {
-                if (isSolidInArea(this.x, checkY)) {
-                    hitWall = true;
+        // Check left wall with step-up (only while moving left)
+        if (this.vx < 0 && (tileMap.isSolidAtWorld(this.x, headY) ||
+            tileMap.isSolidAtWorld(this.x, midY) ||
+            tileMap.isSolidAtWorld(this.x, feetCheckY))) {
+
+            // Try to step up (check if there's clearance above)
+            let canStepUp = false;
+
+            for (let step = 1; step <= PLAYER_MAX_STEP_HEIGHT; step++) {
+                const testY = this.y - step;
+                // Check if at this height, we can move forward
+                if (!tileMap.isSolidAtWorld(this.x, testY + PLAYER_CEILING_SAMPLE_OFFSET) &&
+                    !tileMap.isSolidAtWorld(this.x, testY + this.height / 2) &&
+                    !tileMap.isSolidAtWorld(this.x, testY + this.height - PLAYER_WALL_SAMPLE_INSET)) {
+                    // Found a height where we can pass through
+                    this.y = testY;
+                    canStepUp = true;
                     break;
                 }
             }
 
-            if (hitWall) {
-                // Try to step up (check if there's clearance above)
-                let canStepUp = false;
-
-                for (let step = 1; step <= PLAYER_MAX_STEP_HEIGHT; step++) {
-                    const testY = this.y - step;
-                    // Check if at this height, we can move forward
-                    let clearAtThisHeight = true;
-                    for (let checkY = testY; checkY <= testY + this.height; checkY += 8) {
-                        if (tileMap.isSolidAtWorld(this.x, checkY)) {
-                            clearAtThisHeight = false;
-                            break;
-                        }
-                    }
-
-                    if (clearAtThisHeight) {
-                        // Found a height where we can pass through
-                        this.y = testY;
-                        canStepUp = true;
-                        break;
-                    }
-                }
-
-                // If we can't step up, block horizontal movement
-                if (!canStepUp) {
-                    const tileX = Math.floor(this.x / tileMap.tileWidth);
-                    this.x = (tileX + 1) * tileMap.tileWidth;
-                    this.vx = 0;
-                }
+            // If we can't step up, block horizontal movement
+            if (!canStepUp) {
+                const tileX = Math.floor(this.x / tileMap.tileWidth);
+                this.x = (tileX + 1) * tileMap.tileWidth;
+                this.vx = 0;
             }
         }
 
-        // Check right wall - scan vertically along the right edge
+        // Check right wall with step-up (only when moving right)
         const rightX = this.x + this.width;
-        if (this.vx > 0) {
-            let hitWall = false;
-            // Check multiple points along the right edge from top to bottom
-            for (let checkY = this.y; checkY <= this.y + this.height; checkY += 8) {
-                if (isSolidInArea(rightX, checkY)) {
-                    hitWall = true;
+        if (this.vx > 0 && (tileMap.isSolidAtWorld(rightX, headY) ||
+            tileMap.isSolidAtWorld(rightX, midY) ||
+            tileMap.isSolidAtWorld(rightX, feetCheckY))) {
+
+            // Try to step up (check if there's clearance above)
+            let canStepUp = false;
+
+            for (let step = 1; step <= PLAYER_MAX_STEP_HEIGHT; step++) {
+                const testY = this.y - step;
+                // Check if at this height, we can move forward
+                if (!tileMap.isSolidAtWorld(rightX, testY + PLAYER_CEILING_SAMPLE_OFFSET) &&
+                    !tileMap.isSolidAtWorld(rightX, testY + this.height / 2) &&
+                    !tileMap.isSolidAtWorld(rightX, testY + this.height - PLAYER_WALL_SAMPLE_INSET)) {
+                    // Found a height where we can pass through
+                    this.y = testY;
+                    canStepUp = true;
                     break;
                 }
             }
 
-            if (hitWall) {
-                // Try to step up (check if there's clearance above)
-                let canStepUp = false;
-
-                for (let step = 1; step <= PLAYER_MAX_STEP_HEIGHT; step++) {
-                    const testY = this.y - step;
-                    // Check if at this height, we can move forward
-                    let clearAtThisHeight = true;
-                    for (let checkY = testY; checkY <= testY + this.height; checkY += 8) {
-                        if (tileMap.isSolidAtWorld(rightX, checkY)) {
-                            clearAtThisHeight = false;
-                            break;
-                        }
-                    }
-
-                    if (clearAtThisHeight) {
-                        // Found a height where we can pass through
-                        this.y = testY;
-                        canStepUp = true;
-                        break;
-                    }
-                }
-
-                // If we can't step up, block horizontal movement
-                if (!canStepUp) {
-                    const tileX = Math.floor(rightX / tileMap.tileWidth);
-                    this.x = tileX * tileMap.tileWidth - this.width;
-                    this.vx = 0;
-                }
+            // If we can't step up, block horizontal movement
+            if (!canStepUp) {
+                const tileX = Math.floor(rightX / tileMap.tileWidth);
+                this.x = tileX * tileMap.tileWidth - this.width;
+                this.vx = 0;
             }
         }
 
@@ -403,7 +372,7 @@ class Player extends Actor {
             );
         }
 
-        // Find the ground closest to player's feet among all check positions
+        // Find the highest ground among all check positions
         let groundY = null;
         let isOnSlope = false;
         const maxSearchDepth = PLAYER_GROUND_SEARCH_DEPTH_TILES;
@@ -413,9 +382,7 @@ class Player extends Actor {
             if (ground.y !== null) {
                 // Keep compatibility with previous grounded-vs-airborne snap behavior.
                 if (ground.y <= feetY + landingTolerance) {
-                    // Prefer ground closest to current feet position (not just highest)
-                    // This prevents snapping through floors at slope-to-flat transitions
-                    if (groundY === null || Math.abs(ground.y - feetY) < Math.abs(groundY - feetY)) {
+                    if (groundY === null || ground.y < groundY) {
                         groundY = ground.y;
                         isOnSlope = ground.isSlope;
                     }
@@ -446,64 +413,6 @@ class Player extends Actor {
     }
 
     draw(ctx, game) {
-        // DEBUG: Draw Frame3Attack.png in all 8 directions
-        const showDebugAttackSprites = false; // Toggle this to show/hide debug attack sprites
-        const frame3Image = this.game.assetManager?.getAsset("assets/Frame3Attack.png");
-        if (showDebugAttackSprites && frame3Image) {
-            // Keep the center point constant at player center
-            const cx = this.x + this.width / 2;
-            const cy = this.y + this.height / 2;
-
-            // Define all 8 attack directions
-            const directions = [
-                { dx: 1, dy: 0 },   // right
-                { dx: -1, dy: 0 },  // left
-                { dx: 0, dy: -1 },  // up
-                { dx: 0, dy: 1 },   // down
-                { dx: 1, dy: -1 },  // up-right
-                { dx: -1, dy: -1 }, // up-left
-                { dx: 1, dy: 1 },   // down-right
-                { dx: -1, dy: 1 }   // down-left
-            ];
-
-            // Draw Frame3Attack in each direction
-            for (const dir of directions) {
-                ctx.save();
-                ctx.translate(cx, cy);
-
-                // Apply rotation and mirroring (same logic as AttackHitbox)
-                if (dir.dx < 0) {
-                    ctx.scale(-1, 1);
-                    ctx.rotate(Math.atan2(dir.dy, -dir.dx));
-                } else {
-                    ctx.rotate(Math.atan2(dir.dy, dir.dx));
-                }
-
-                // Draw the image with reduced opacity
-                const spriteWidth = frame3Image.width * this.scale;
-                const spriteHeight = frame3Image.height * this.scale;
-
-                // Position sprite at a distance from player center
-                // Adjust -this.width / 1.15 to move closer/farther
-                const offsetX = -this.width / 1.15;
-
-                // Center the sprite by offsetting by half its height
-                // This works correctly in all rotations
-                const offsetY = -spriteHeight / 2;
-
-                ctx.globalAlpha = 0.4;
-                ctx.drawImage(
-                    frame3Image,
-                    offsetX,
-                    offsetY,
-                    spriteWidth,
-                    spriteHeight
-                );
-
-                ctx.restore();
-            }
-        }
-
         // Draw dream particle trail behind player
         for (const p of this.dreamParticles) {
             ctx.save();
@@ -515,19 +424,43 @@ class Player extends Actor {
             ctx.restore();
         }
 
-        // Draw player sprite normally (no rotation during attacks)
-        this.animator.draw(ctx, this.x, this.y);
-
-        // Draw attack slash on top of player if attacking
         const attackState = this.states["attack"];
-        if (this.currentState === attackState && attackState.hitbox) {
-            attackState.hitbox.draw(ctx, game);
+        const isAttacking = this.currentState === attackState;
+
+        if (isAttacking) {
+            const dx = attackState.attackDirX;
+            const dy = attackState.attackDirY;
+            const cx = this.x + this.width / 2;
+            const cy = this.y + this.height / 2;
+
+            ctx.save();
+            ctx.translate(cx, cy);
+
+            if (dx < 0) {
+                // Mirror on X then rotate by reflected angle (same as slash logic)
+                ctx.scale(-1, 1);
+                ctx.rotate(Math.atan2(dy, -dx));
+            } else {
+                ctx.rotate(Math.atan2(dy, dx));
+            }
+
+            // Temporarily force "right" so the animator doesn't apply its own
+            // internal flip — our external transform already handles direction.
+            const prevDir = this.animator.direction;
+            this.animator.direction = "right";
+            this.animator.draw(ctx, -this.width / 2, -this.height / 2);
+            this.animator.direction = prevDir;
+
+            ctx.restore();
+        } else {
+            this.animator.draw(ctx, this.x, this.y);
         }
 
         // Draw skill shot bar during aiming
         if (this.currentState === this.states["dashstrikeaim"]) {
             this._drawSkillShotBar(ctx);
         }
+
 
 
     }

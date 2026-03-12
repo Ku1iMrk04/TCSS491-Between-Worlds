@@ -150,8 +150,8 @@ class AttackHitbox {
                 }
 
                 // Position sprite at distance from player center, centered vertically
-                // Adjust -this.owner.width / 1.15 to move closer/farther
-                const offsetX = -this.owner.width / 1.15;
+                // Adjust multiplier to move closer/farther (larger = closer to body)
+                const offsetX = -this.owner.width * 2;
                 const offsetY = -slashHeight / 2;  // Center vertically
 
                 this.animator.draw(ctx, offsetX, offsetY);

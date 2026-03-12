@@ -4,7 +4,7 @@ import Animator from "../animation/animator.js";
 
 const SCIENTIST_HEALTH = 1;
 const SCIENTIST_BASE_SPEED = 30; // Used for projectile speed calculation
-const SCIENTIST_SPEED = 325; // Matches Grunt chase speed
+const SCIENTIST_SPEED = 275; // Matches player speed
 const SCIENTIST_ATTACK_RANGE = 560; // Desired shooting distance
 const SCIENTIST_ATTACK_DELAY = 0.5; // Delay before shooting
 const SCIENTIST_ATTACK_COOLDOWN_SECONDS = 1.5; // Cooldown between shots

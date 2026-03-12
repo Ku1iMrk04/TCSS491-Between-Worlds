@@ -6,7 +6,7 @@ import MenuScene from "./src/scenes/menuscene.js";
 import MapLoader from "./src/map/maploader.js";
 import MusicManager from "./src/audio/musicmanager.js";
 
-const gameEngine = new GameEngine({ debugging: true });
+const gameEngine = new GameEngine({ debugging: false });
 const mapLoader = new MapLoader();
 
 const ASSET_MANAGER = new AssetManager();
