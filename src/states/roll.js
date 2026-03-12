@@ -5,7 +5,7 @@ class Roll extends State {
     constructor() {
         super();
         this.rollDuration = 0.4;  // Roll lasts 0.4 seconds
-        this.rollSpeed = 300;  // Roll movement speed
+        this.rollSpeed = 450;  // Roll movement speed
         this.timeRemaining = 0;
     }
 

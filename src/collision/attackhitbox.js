@@ -26,14 +26,15 @@ class AttackHitbox {
         this.collider = new Collider({
             size: options.size || { width: 32, height: 32 },
             layer: options.layer || "player_attack",
-            isTrigger: true  // Pass-through, doesn't push entities
+            isTrigger: true,  // Pass-through, doesn't push entities
+            angle: options.attackDir ? Math.atan2(options.attackDir.y, options.attackDir.x) : 0
         });
 
         // Create slash animator for all attacks.
         // Directional attacks always use "right" facing so canvas rotation handles the direction.
         if (owner.animator && owner.game.assetManager) {
             this.animator = new Animator("ninja", owner.game.assetManager);
-            this.animator.setScale(owner.scale || 3);
+            this.animator.setScale((owner.scale || 3) * 0.7);
             const slashFacing = this.attackDir ? "right" : owner.facing;
             this.animator.setAnimation("attack_slash", slashFacing, false);
 
@@ -69,12 +70,14 @@ class AttackHitbox {
         const hh = this.collider.size.height / 2;
 
         if (this.attackDir) {
-            // Place hitbox so its near face touches the player's edge in the attack direction
+            // Center hitbox at the slash visual center (same math as draw offsetX)
             const cx = owner.x + owner.width / 2;
             const cy = owner.y + owner.height / 2;
+            const slashW = this.animator ? 124 * this.animator.scale : this.collider.size.width;
+            const slashCenter = -owner.width * 0.75 + slashW / 2;
             return {
-                x: cx + this.attackDir.x * (owner.width / 2 + hw) - hw,
-                y: cy + this.attackDir.y * (owner.height / 2 + hh) - hh
+                x: cx + this.attackDir.x * slashCenter - hw,
+                y: cy + this.attackDir.y * slashCenter - hh
             };
         }
 
@@ -127,11 +130,12 @@ class AttackHitbox {
     draw(ctx, game) {
         // Draw the attack slash animation
         if (this.animator) {
-            // Slash sprite dimensions: 124x27 at owner scale (ninja sprite)
-            const slashWidth = 124 * this.owner.scale;
-            const slashHeight = 27 * this.owner.scale;
+            // Slash sprite dimensions: 124x27 at slash scale
+            const slashWidth = 124 * this.animator.scale;
+            const slashHeight = 27 * this.animator.scale;
 
             if (this.attackDir) {
+                // Use player center as the rotation point (same as debug visualization)
                 const cx = this.owner.x + this.owner.width / 2;
                 const cy = this.owner.y + this.owner.height / 2;
 
@@ -148,8 +152,12 @@ class AttackHitbox {
                     ctx.rotate(Math.atan2(this.attackDir.y, this.attackDir.x));
                 }
 
-                // Draw from the player's near edge outward, top-aligned with player top (matching legacy)
-                this.animator.draw(ctx, -this.owner.width / 2, -this.owner.height / 2);
+                // Position sprite at distance from player center, centered vertically
+                // Positive offsetX pushes slash further from body (player half-width = 33px)
+                const offsetX = -this.owner.width * 0.75;
+                const offsetY = -slashHeight / 2;  // Center vertically
+
+                this.animator.draw(ctx, offsetX, offsetY);
                 ctx.restore();
             } else {
                 // Legacy left/right: align sprite's near edge with player's near edge

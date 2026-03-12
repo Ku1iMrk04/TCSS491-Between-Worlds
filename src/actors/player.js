@@ -60,6 +60,10 @@ class Player extends Actor {
         this.addState("dreamslashaim", new DreamSlashAim());
         this.changeState("idle");
 
+        // Roll cooldown
+        this.rollCooldown = 0.3;
+        this.rollCooldownTimer = 0;
+
         // Dash Strike cooldown
         this.dashStrikeCooldown = 3.0;
         this.dashStrikeCooldownTimer = 0;
@@ -95,6 +99,9 @@ class Player extends Actor {
         const dt = this.game.clockTick || 0;
         if (this.dashStrikeCooldownTimer > 0) {
             this.dashStrikeCooldownTimer -= dt;
+        }
+        if (this.rollCooldownTimer > 0) {
+            this.rollCooldownTimer -= dt;
         }
         if (this.dreamSlashCooldownTimer > 0) {
             this.dreamSlashCooldownTimer -= dt;
@@ -157,7 +164,8 @@ class Player extends Actor {
             }
 
             // Roll input (left shift - only when grounded and not already rolling/attacking)
-            if (this.game.shift && this.grounded && this.currentState !== this.states["roll"] && this.currentState !== this.states["attack"]) {
+            if (this.game.shift && this.grounded && this.currentState !== this.states["roll"] && this.currentState !== this.states["attack"] && this.rollCooldownTimer <= 0) {
+                this.rollCooldownTimer = this.rollCooldown;
                 this.changeState("roll");
             }
 
@@ -309,7 +317,7 @@ class Player extends Actor {
         const feetY = this.y + this.height;
         const previousFeetY = previousY + this.height;
         const landingTolerance = this.grounded ? PLAYER_GROUND_GROUNDED_TOLERANCE : PLAYER_GROUND_AIRBORNE_TOLERANCE;
-        const sweepMinY = Math.min(previousFeetY, feetY) - PLAYER_GROUND_AIRBORNE_TOLERANCE;
+        const sweepMinY = Math.min(previousFeetY, feetY) - (PLAYER_GROUND_AIRBORNE_TOLERANCE + PLAYER_WALL_SAMPLE_INSET);
         const sweepMaxY = Math.max(previousFeetY, feetY) + landingTolerance;
 
         // Helper function to find ground (slope or solid) at a given X position
@@ -372,7 +380,8 @@ class Player extends Actor {
             );
         }
 
-        // Find the highest ground among all check positions
+        // Find the ground closest to current feet among all check positions
+        // (not just highest) — prevents snapping through floors at slope-to-flat transitions
         let groundY = null;
         let isOnSlope = false;
         const maxSearchDepth = PLAYER_GROUND_SEARCH_DEPTH_TILES;
@@ -382,7 +391,7 @@ class Player extends Actor {
             if (ground.y !== null) {
                 // Keep compatibility with previous grounded-vs-airborne snap behavior.
                 if (ground.y <= feetY + landingTolerance) {
-                    if (groundY === null || ground.y < groundY) {
+                    if (groundY === null || Math.abs(ground.y - feetY) < Math.abs(groundY - feetY)) {
                         groundY = ground.y;
                         isOnSlope = ground.isSlope;
                     }
@@ -460,6 +469,7 @@ class Player extends Actor {
         if (this.currentState === this.states["dashstrikeaim"]) {
             this._drawSkillShotBar(ctx);
         }
+
 
 
     }

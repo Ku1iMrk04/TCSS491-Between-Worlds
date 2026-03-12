@@ -6,7 +6,7 @@ import MenuScene from "./src/scenes/menuscene.js";
 import MapLoader from "./src/map/maploader.js";
 import MusicManager from "./src/audio/musicmanager.js";
 
-const gameEngine = new GameEngine({ debugging: true });
+const gameEngine = new GameEngine({ debugging: false });
 const mapLoader = new MapLoader();
 
 const ASSET_MANAGER = new AssetManager();
@@ -20,6 +20,9 @@ ASSET_MANAGER.queueSprite("assets/gangsteridle_3.png");
 // Background images (no metadata needed)
 ASSET_MANAGER.queueDownload("assets/menu_background.png");
 ASSET_MANAGER.queueDownload("assets/level_background.png");
+
+// Debug images
+ASSET_MANAGER.queueDownload("assets/Frame3Attack.png");
 
 // Fallback image for missing animations
 ASSET_MANAGER.queueDownload("assets/NoSpriteBudda.png");

@@ -2,16 +2,14 @@ import EnemyProjectile from "./enemyprojectile.js";
 import Enemy from "./enemy.js";
 import Animator from "../animation/animator.js";
 
-const SCIENTIST_HEALTH = 40;
-const SCIENTIST_BASE_SPEED = 30;
-const SCIENTIST_SPEED_MULTIPLIER = 1.65; // Slightly faster walk speed to better match the current animation cadence
-const SCIENTIST_SPEED = SCIENTIST_BASE_SPEED * SCIENTIST_SPEED_MULTIPLIER;
-const SCIENTIST_ATTACK_RANGE = 260; // Desired shooting distance
-const SCIENTIST_ATTACK_DELAY = 1.5; // Delay before shooting (longer than melee)
-const SCIENTIST_ATTACK_COOLDOWN_SECONDS = 2.5; // Cooldown between shots
-const SCIENTIST_PROJECTILE_SPEED_MULTIPLIER = 18; // Increased for faster projectiles (inspired by Katana Zero)
-// Keep projectile speed aligned to previous feel after movement speed increase.
-const SCIENTIST_PROJECTILE_SPEED = SCIENTIST_BASE_SPEED * SCIENTIST_PROJECTILE_SPEED_MULTIPLIER;
+const SCIENTIST_HEALTH = 1;
+const SCIENTIST_BASE_SPEED = 30; // Used for projectile speed calculation
+const SCIENTIST_SPEED = 275; // Matches player speed
+const SCIENTIST_ATTACK_RANGE = 560; // Desired shooting distance
+const SCIENTIST_ATTACK_DELAY = 0.5; // Delay before shooting
+const SCIENTIST_ATTACK_COOLDOWN_SECONDS = 1.5; // Cooldown between shots
+const SCIENTIST_PROJECTILE_SPEED_MULTIPLIER = 30; // Fast Katana-Zero-style projectiles
+const SCIENTIST_PROJECTILE_SPEED = SCIENTIST_BASE_SPEED * SCIENTIST_PROJECTILE_SPEED_MULTIPLIER; // 900 px/s
 const SCIENTIST_PROJECTILE_LIFE = null;
 const SCIENTIST_PROJECTILE_DAMAGE = 5;
 const SCIENTIST_PROJECTILE_RADIUS = 6;
@@ -53,8 +51,12 @@ class ScientistEnemy extends Enemy {
 
     /**
      * Override update for ranged-specific behavior:
-     * Chase until in attacking range, then stop and shoot
-     * Only resume chase if player gets outside range
+     * - Chase until in attack range AND has line-of-sight.
+     * - Once in attack stance, hold position and keep shooting even if the player
+     *   closes the distance.  Only resume chase if the player escapes beyond
+     *   attackRange.
+     * - If the player breaks line-of-sight while out of attack stance, chase to
+     *   the last known position.
      */
     update() {
         const dt = this.game.clockTick || 0;
@@ -63,6 +65,7 @@ class ScientistEnemy extends Enemy {
         }
         const wasGrounded = this.grounded;
 
+        if (this.alertTimer > 0) this.alertTimer -= dt;
         this.attackTimer -= dt;
         this.attackDelayTimer -= dt;
         this.stairPursuitTimer = Math.max(0, this.stairPursuitTimer - dt);
@@ -91,16 +94,52 @@ class ScientistEnemy extends Enemy {
             }
         }
 
-        // Ranged enemy behavior: chase until in range, then stop and shoot
-        if (!targetPos || !canEngage || (horizontalDist > this.aggroRange && !this.hasSeenPlayer)) {
-            // Out of aggro range and haven't seen player
+        const inAttackRange = horizontalGap <= this.attackRange;
+        const inAttackMode  = this.state === "waitingToAttack" || this.state === "attacking";
+
+        // --- IDLE: no target yet, or never triggered and out of range/engagement ---
+        if (!targetPos || (!this.hasSeenPlayer && (!canEngage || horizontalDist > this.aggroRange))) {
             if (this.state !== "idle") {
                 this.state = "idle";
                 this.animator.setAnimation(this.idleAnimation, this.facing, true);
             }
             this.vx = 0;
-        }
-        else if (!canSeePlayer) {
+
+        // --- HOLD POSITION: already in attack stance ---
+        // Leave attack mode if the player escapes range OR breaks line-of-sight.
+        } else if (inAttackMode) {
+            if (!inAttackRange || !canSeePlayer) {
+                // Lost range or lost LoS - chase to close in / reacquire
+                this.state = "chase";
+                this.animator.setAnimation(this.chaseAnimation, this.facing, true);
+                let dir = 0;
+                if (centerDx > this.horizontalDeadzone) dir = 1;
+                else if (centerDx < -this.horizontalDeadzone) dir = -1;
+                this.vx = dir * this.speed;
+            } else {
+                // In range AND has LoS - stay put and shoot
+                this.vx = 0;
+                if (this.state === "waitingToAttack") {
+                    if (this.attackDelayTimer <= 0) {
+                        this.state = "attacking";
+                        this.performAttack();
+                    }
+                } else if (this.state === "attacking") {
+                    if (this.attackTimer <= 0) {
+                        this.performAttack();
+                    }
+                }
+            }
+
+        // --- ENTER ATTACK STANCE: in range AND has line-of-sight ---
+        } else if (inAttackRange && canSeePlayer) {
+            this.state = "waitingToAttack";
+            this.attackDelayTimer = this.attackDelay;
+            this.animator.setAnimation(this.attackAnimation, this.facing, true);
+            this.vx = 0;
+
+        // --- CHASE (no LoS): pursue last known / current player position ---
+        } else if (!canSeePlayer) {
             if (targetReached) {
                 this.clearTargetMemory();
                 if (this.state !== "idle") {
@@ -118,39 +157,18 @@ class ScientistEnemy extends Enemy {
                 else if (centerDx < -this.horizontalDeadzone) dir = -1;
                 this.vx = dir * this.speed;
             }
-        }
-        else if (horizontalGap > this.attackRange) {
-            // Too far away - chase the player
+
+        // --- CHASE (has LoS): player visible but out of attack range ---
+        } else {
             if (this.state !== "chase") {
                 this.state = "chase";
+                this.alertTimer = 0.7;
                 this.animator.setAnimation(this.chaseAnimation, this.facing, true);
             }
             let dir = 0;
             if (centerDx > this.horizontalDeadzone) dir = 1;
             else if (centerDx < -this.horizontalDeadzone) dir = -1;
             this.vx = dir * this.speed;
-        }
-        else {
-            // In attack range - stop moving and shoot
-            if (this.state !== "waitingToAttack" && this.state !== "attacking") {
-                this.state = "waitingToAttack";
-                this.attackDelayTimer = this.attackDelay;
-                this.animator.setAnimation(this.attackAnimation, this.facing, true);
-            }
-            this.vx = 0;
-
-            // Handle attack delay and cooldown
-            if (this.state === "waitingToAttack") {
-                if (this.attackDelayTimer <= 0) {
-                    this.state = "attacking";
-                    this.performAttack();
-                }
-            }
-            else if (this.state === "attacking") {
-                if (this.attackTimer <= 0) {
-                    this.performAttack();
-                }
-            }
         }
 
         this.finalizeUpdate(wasGrounded);
