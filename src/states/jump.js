@@ -5,6 +5,11 @@ class Jump extends State {
     enter() {
         const entity = this.myEntity;
 
+        // Play jump sound effect
+        const jumpSfx = new Audio("jump.wav");
+        jumpSfx.volume = 0.4;
+        jumpSfx.play().catch(() => {});
+
         // Apply initial jump velocity (negative = upward)
         entity.vy = -600;  // Jump strength
         entity.grounded = false;

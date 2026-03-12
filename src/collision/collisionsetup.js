@@ -29,6 +29,11 @@ export function setupCollisions(collisionManager) {
         if (!hitbox.hasHit(enemy)) {
             hitbox.markHit(enemy);
 
+            // Play sword hit sound effect
+            const hitSfx = new Audio("swordHit.wav");
+            hitSfx.volume = 0.4;
+            hitSfx.play().catch(() => {});
+
             if (enemy.takeDamage) {
                 enemy.takeDamage(hitbox.damage);
             }

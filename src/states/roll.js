@@ -29,6 +29,11 @@ class Roll extends State {
         entity.grounded = true;
         entity.vy = 0;
 
+        // Play roll sound effect
+        const rollSfx = new Audio("dodge.mp3");
+        rollSfx.volume = 0.4;
+        rollSfx.play().catch(() => {});
+
         // Set roll animation (non-looping)
         // Will use fallback NoSpriteBudda.png until roll animation is added to zero.json
         if (entity.animator) {

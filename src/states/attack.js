@@ -45,6 +45,11 @@ class Attack extends State {
         if (dx < 0) entity.facing = "left";
         else if (dx > 0) entity.facing = "right";
 
+        // Play sword swing sound effect
+        const missSfx = new Audio("swordMiss.wav");
+        missSfx.volume = 0.4;
+        missSfx.play().catch(() => {});
+
         // Set attack animation at faster speed
         if (entity.animator) {
             entity.animator.setAnimation("attack", entity.facing, false);

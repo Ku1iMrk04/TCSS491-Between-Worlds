@@ -58,7 +58,7 @@ ASSET_MANAGER.downloadAll(async () => {
 
 	// Music setup — register tracks here, add more as needed
 	const musicManager = new MusicManager();
-	musicManager.register("gameplay", "viacheslavstarostin-game-gaming-video-game-music-471936.mp3");
+	musicManager.register("gameplay", "backgroundMusic.mp3");
 	// musicManager.register("menu",     "assets/audio/menu.mp3");
 	// musicManager.register("boss",     "assets/audio/boss.mp3");
 	gameEngine.musicManager = musicManager;
