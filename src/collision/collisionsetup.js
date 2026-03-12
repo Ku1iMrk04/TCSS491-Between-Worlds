@@ -11,6 +11,7 @@ export function setupCollisions(collisionManager) {
     // Define which layers can collide with each other
     collisionManager.addLayerRule("player", "enemy");
     collisionManager.addLayerRule("player_attack", "enemy");
+    collisionManager.addLayerRule("player_attack", "enemy_projectile");
     collisionManager.addLayerRule("enemy_attack", "player");
     collisionManager.addLayerRule("enemy_projectile", "player");
 
@@ -59,6 +60,11 @@ export function setupCollisions(collisionManager) {
                 enemy.y += (dy / dist) * hitbox.knockback * 0.1;
             }
         }
+    });
+
+    // Player attack destroying enemy projectiles
+    collisionManager.onCollision("player_attack", "enemy_projectile", (hitbox, projectile, overlap) => {
+        projectile.removeFromWorld = true;
     });
 
     // enemy attacking player

@@ -5,7 +5,7 @@ class Attack extends State {
     constructor() {
         super();
         this.hitbox = null;
-        this.attackDuration = 0.4;  // How long the attack lasts (seconds)
+        this.attackDuration = 0.3;  // How long the attack lasts (seconds)
         this.attackTimer = 0;
         this.dashSpeed = 800;   // Peak lunge speed at start of attack
         this.lungeDuration = 0.15;  // How long the lunge deceleration lasts
@@ -45,16 +45,20 @@ class Attack extends State {
         if (dx < 0) entity.facing = "left";
         else if (dx > 0) entity.facing = "right";
 
-        // Set attack animation
+        // Set attack animation at faster speed
         if (entity.animator) {
             entity.animator.setAnimation("attack", entity.facing, false);
+            entity.animator.setSpeed(0.06);
         }
 
-        // Size hitbox based on primary attack axis
+        // Size hitbox to match slash visual (124x27 sprite at scale * 0.7)
+        const slashScale = entity.scale * 0.7;
+        const slashW = Math.round(124 * slashScale);
+        const slashH = Math.round(27 * slashScale);
         const isVertical = Math.abs(dy) > Math.abs(dx);
         const hitboxSize = isVertical
-            ? { width: 20 * 3, height: 82 * 3 }   // tall for up/down
-            : { width: 82 * 3, height: 20 * 3 };   // wide for left/right/diagonal
+            ? { width: slashH, height: slashW }
+            : { width: slashW, height: slashH };
 
         // Spawn hitbox in the attack direction
         try {
@@ -128,9 +132,10 @@ class Attack extends State {
             this.hitbox = null;
         }
 
-        // Return to idle animation
+        // Return to idle animation and restore default speed
         if (this.myEntity && this.myEntity.animator) {
             try {
+                this.myEntity.animator.setSpeed(0.1);
                 this.myEntity.animator.setAnimation("idle", this.myEntity.facing, true);
                 this.myEntity.currentAnimState = "idle";
             } catch (err) {

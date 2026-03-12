@@ -21,7 +21,54 @@ const LEVEL_SPAWN_POINTS = [
     { x: 160, y: 498 },   // Level 1
     { x: 160, y: 498 },   // Level 2
     { x: 34,  y: 1430 },  // Level 3
-    { x: 160, y: 498 },   // Level 4
+    { x: 160, y: 402 },   // Level 4
+];
+
+// Enemy spawn points per level. Each entry is an array of { x, y, type } objects.
+// type can be "grunt", "scientist", or "gangster".
+const LEVEL_ENEMY_SPAWNS = [
+    // Level 1 (world: 2240 x 1152)
+    [
+        { x: 800,  y: 336, type: "grunt", facing: "right" },       // upper platform, left
+        { x: 1344, y: 336, type: "grunt", facing: "left" },       // upper platform, center-right
+        { x: 1152, y: 656, type: "grunt", facing: "right" },       // lower level, center
+        { x: 1664, y: 656, type: "scientist" },   // lower level, right
+    ],
+    // Level 2 (world: 2304 x 768)
+    [
+        { x: 512,  y: 432, type: "grunt", facing: "left" },       // left platform
+        { x: 1024, y: 560, type: "grunt", facing: "right" },       // lower center
+        { x: 1184, y: 368, type: "scientist" },   // upper center
+        { x: 1760, y: 432, type: "grunt" },       // right platform
+    ],
+    // Level 3 (world: 2304 x 1600)
+    [
+        { x: 576,  y: 800,  type: "grunt" },      // upper platform, left
+        { x: 832,  y: 784,  type: "scientist" },  // upper platform, center-left
+        { x: 960,  y: 784,  type: "scientist" },  // upper platform, center
+        { x: 1280, y: 800,  type: "grunt" },      // upper platform, right
+        { x: 1824, y: 928,  type: "grunt" },      // right elevated section
+        { x: 416,  y: 1072, type: "scientist" },  // left mid-tier
+        { x: 2176, y: 1072, type: "scientist" },  // far right
+        { x: 928,  y: 1232, type: "grunt" },      // lower level, center-left
+        { x: 1280, y: 1232, type: "grunt" },      // lower level, center
+        { x: 1440, y: 1232, type: "scientist" },  // lower level, center-right
+        { x: 448,  y: 1360, type: "grunt" },      // bottom floor
+    ],
+    // Level 4 (world: 2048 x 1024)
+    [
+        { x: 1024, y: 432, type: "grunt" },       // upper platform, center
+        { x: 1568, y: 496, type: "scientist" },   // upper right
+        { x: 1856, y: 496, type: "grunt" },       // upper far right
+        { x: 128,  y: 624, type: "scientist" },   // mid left
+        { x: 544,  y: 624, type: "grunt" },       // mid center-left
+        { x: 960,  y: 656, type: "scientist" },   // mid center
+        { x: 128,  y: 816, type: "scientist" },   // floor far left
+        { x: 416,  y: 816, type: "grunt" },       // floor left
+        { x: 704,  y: 816, type: "scientist" },   // floor center-left
+        { x: 864,  y: 816, type: "grunt" },       // floor center
+        { x: 1472, y: 816, type: "grunt" },       // floor right
+    ],
 ];
 
 // Exit portal positions per level (x, y in world pixels, center of portal).
@@ -85,7 +132,7 @@ class GameScene extends Scene {
         this.game.addEntity(this.player);
         this.game.camera.follow(this.player);
 
-        const enemySpawns = tileMap.getEnemySpawns();
+        const enemySpawns = LEVEL_ENEMY_SPAWNS[this.levelIndex] || [];
         for (const spawn of enemySpawns) {
             let enemy;
             if (spawn.type === "grunt") {
@@ -96,6 +143,10 @@ class GameScene extends Scene {
                 enemy = new ScientistEnemy(this.game, spawn.x, spawn.y);
             } else {
                 enemy = new Enemy(this.game, spawn.x, spawn.y);
+            }
+            if (spawn.facing) {
+                enemy.facing = spawn.facing;
+                enemy.animator.setDirection(spawn.facing);
             }
             this.game.addEntity(enemy);
         }
@@ -152,7 +203,7 @@ class GameScene extends Scene {
         if (this.levelCompleteTriggered) return;
 
         if (this.player && this.player.removeFromWorld) {
-            this.game.sceneManager.changeScene(new DeathScene(this.game, this.levelBgImage));
+            this.game.sceneManager.changeScene(new DeathScene(this.game, this.levelBgImage, this.levelIndex));
             return;
         }
 

@@ -30,7 +30,7 @@ class Enemy extends Actor {
 
         // Vision cone properties
         this.visionRange = 420; // Distance the enemy can see
-        this.visionAngle = 180; // Cone width in degrees (180 = 90 degree cone on each side)
+        this.visionAngle = 20; // Cone width in degrees (20 = 10 degree cone on each side)
 
         // attack timing
         this.attackCooldown = 0.9; // seconds
@@ -317,7 +317,7 @@ class Enemy extends Actor {
         return !!(tileMap.getSlopeAt(leftTileX, leftTileY) || tileMap.getSlopeAt(rightTileX, rightTileY));
     }
 
-    canEngagePlayer(player, context) {
+    canEngagePlayer(_player, context) {
         return context.sameFloor ||
             (context.stairPursuitActive && (context.canSeePlayer || this.hasSeenPlayer));
     }
@@ -388,9 +388,7 @@ class Enemy extends Actor {
             canSeePlayer,
             targetPos,
             centerDx,
-            horizontalDist,
             horizontalGap,
-            canEngage,
             targetReached
         } = this.getTargetContext(player);
 
@@ -402,14 +400,15 @@ class Enemy extends Actor {
             }
         }
 
-        // Go idle only if we have no target or (haven't seen player yet AND can't engage / out of range).
+        // Go idle if no target, or if we haven't spotted the player via the vision cone yet.
         // Once hasSeenPlayer is true the enemy always pursues regardless of floor/range limits.
-        if (!targetPos || (!this.hasSeenPlayer && (!canEngage || horizontalDist > this.aggroRange))) {
+        if (!targetPos || (!this.hasSeenPlayer && !canSeePlayer)) {
             if (this.state !== "idle") {
                 this.state = "idle";
                 this.animator.setAnimation(this.idleAnimation, this.facing, true);
             }
             this.vx = 0;
+            this.performIdleBehavior();
         }
         else if (!canSeePlayer) {
             if (targetReached) {
@@ -464,6 +463,14 @@ class Enemy extends Actor {
                 if (this.attackTimer <= 0) {
                     this.performAttack();
                 }
+            }
+        }
+
+        // Stop before walking off a ledge
+        if (this.grounded && this.vx !== 0) {
+            const dir = this.vx > 0 ? 1 : -1;
+            if (this.isLedgeAhead(dir)) {
+                this.vx = 0;
             }
         }
 
@@ -596,8 +603,71 @@ class Enemy extends Actor {
         }
     }
 
+    /**
+     * Returns true if there is no solid ground directly ahead of the enemy
+     * in the given direction (1 = right, -1 = left), meaning a ledge drop-off.
+     */
+    isLedgeAhead(dir) {
+        const tileMap = this.game.tileMap;
+        if (!tileMap || !this.grounded) return false;
+
+        // Already on a slope — physics handles it, no ledge block needed
+        if (this.isOnSlope(this)) return false;
+
+        const tileW = tileMap.tileWidth;
+        const tileH = tileMap.tileHeight;
+        const lookX = dir > 0 ? this.x + this.width + 4 : this.x - 4;
+        const tileX = Math.floor(lookX / tileW);
+        const feetY = this.y + this.height;
+
+        const tileRow = Math.floor(feetY / tileH);
+
+        // If there's any foreground tile at the same row ahead, it's not a ledge
+        // (covers flat floor continuation and slope tiles at the same level)
+        if (tileMap.isSolid(tileX, tileRow)) return false;
+
+        // If the row below has a SLOPE tile, it's a staircase going down — not a ledge
+        // (don't check for generic solid tiles here: a solid tile one row below is the
+        // lower floor of a drop, which IS a ledge we should stop at)
+        if (tileMap.getSlopeAt(tileX, tileRow + 1)) return false;
+
+        return true;
+    }
+
+    // Subclasses can override this to add custom idle behavior (e.g. patrolling).
+    // Called every frame while the enemy is in the idle state.
+    // vx is already 0 when this runs; override to set it to something else.
+    performIdleBehavior() {}
+
     draw(ctx, game) {
         this.animator.draw(ctx, this.x, this.y);
+
+        // Debug: draw vision cone
+        if (game && game.showHitboxes) {
+            const cx = this.x + this.width / 2;
+            const cy = this.y + this.height / 2;
+            const facingAngle = this.facing === "right" ? 0 : Math.PI;
+            const halfAngle = (this.visionAngle / 2) * (Math.PI / 180);
+
+            ctx.save();
+            ctx.globalAlpha = 0.18;
+            ctx.fillStyle = this.state === "idle" ? "#00ff00" : "#ff4400";
+            ctx.beginPath();
+            ctx.moveTo(cx, cy);
+            ctx.arc(cx, cy, this.visionRange, facingAngle - halfAngle, facingAngle + halfAngle);
+            ctx.closePath();
+            ctx.fill();
+
+            ctx.globalAlpha = 0.5;
+            ctx.strokeStyle = this.state === "idle" ? "#00ff00" : "#ff4400";
+            ctx.lineWidth = 1;
+            ctx.beginPath();
+            ctx.moveTo(cx, cy);
+            ctx.arc(cx, cy, this.visionRange, facingAngle - halfAngle, facingAngle + halfAngle);
+            ctx.closePath();
+            ctx.stroke();
+            ctx.restore();
+        }
 
         if (this.state !== "idle" && this.state !== "dead") {
             ctx.save();
