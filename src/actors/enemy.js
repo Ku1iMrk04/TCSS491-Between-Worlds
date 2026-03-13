@@ -436,7 +436,7 @@ class Enemy extends Actor {
                 this.state = "chase";
                 this.alertTimer = 0.7;
                 this.animator.setAnimation(this.chaseAnimation, this.facing, true);
-                const sfx = new Audio("gruntTriggered.mp3");
+                const sfx = new Audio("assets/sounds/gruntTriggered.mp3");
                 sfx.volume = 0.4;
                 sfx.play().catch(() => {});
             }

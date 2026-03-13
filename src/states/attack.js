@@ -46,7 +46,7 @@ class Attack extends State {
         else if (dx > 0) entity.facing = "right";
 
         // Play sword swing sound effect
-        const missSfx = new Audio("swordMiss.wav");
+        const missSfx = new Audio("assets/sounds/swordMiss.wav");
         missSfx.volume = 0.4;
         missSfx.play().catch(() => {});
 

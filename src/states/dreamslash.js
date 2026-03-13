@@ -49,7 +49,7 @@ class DreamSlash extends State {
         entity.dreamMeter = Math.max(0, entity.dreamMeter - entity.dreamBlinkCost);
 
         // Play dream dash sound
-        const missSfx = new Audio("dreamDashMiss.mp3");
+        const missSfx = new Audio("assets/sounds/dreamDashMiss.mp3");
         missSfx.volume = 0.4;
         missSfx.play().catch(() => {});
 

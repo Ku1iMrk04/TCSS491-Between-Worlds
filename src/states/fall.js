@@ -49,7 +49,7 @@ class Fall extends State {
         // Reset vertical velocity when landing
         if (this.myEntity.grounded) {
             this.myEntity.vy = 0;
-            const sfx = new Audio("softLanding.mp3");
+            const sfx = new Audio("assets/sounds/softLanding.mp3");
             sfx.volume = 0.4;
             sfx.play().catch(() => {});
         }

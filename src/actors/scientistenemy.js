@@ -181,6 +181,10 @@ class ScientistEnemy extends Enemy {
 
         this.attackTimer = this.attackCooldown;
 
+        const shootSfx = new Audio("assets/sounds/laserGun.mp3");
+        shootSfx.volume = 0.4;
+        shootSfx.play().catch(() => {});
+
         const spawnX = this.facing === "left"
             ? this.x + SCIENTIST_PROJECTILE_SPAWN_X_INSET
             : this.x + this.width - SCIENTIST_PROJECTILE_SPAWN_X_INSET;

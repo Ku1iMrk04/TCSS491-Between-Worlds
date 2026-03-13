@@ -58,8 +58,8 @@ ASSET_MANAGER.downloadAll(async () => {
 
 	// Music setup — register tracks here, add more as needed
 	const musicManager = new MusicManager();
-	musicManager.register("gameplay", "backgroundMusic.mp3");
-	musicManager.register("dream", "dreamBackgroundMusic.mp3");
+	musicManager.register("gameplay", "assets/sounds/backgroundMusic.mp3");
+	musicManager.register("dream", "assets/sounds/dreamBackgroundMusic.mp3");
 	// musicManager.register("menu",     "assets/audio/menu.mp3");
 	// musicManager.register("boss",     "assets/audio/boss.mp3");
 	gameEngine.musicManager = musicManager;

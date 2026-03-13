@@ -147,7 +147,7 @@ class Player extends Actor {
             this.inDreamState = true;
             this.speed *= this.dreamSpeedMultiplier;
             this.game.eKey = false;
-            const sfx = new Audio("dreamActivate.mp3");
+            const sfx = new Audio("assets/sounds/dreamActivate.mp3");
             sfx.volume = 0.4;
             sfx.play().catch(() => {});
             if (this.game.musicManager) this.game.musicManager.play("dream");

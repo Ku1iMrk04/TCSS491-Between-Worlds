@@ -30,7 +30,7 @@ class Roll extends State {
         entity.vy = 0;
 
         // Play roll sound effect
-        const rollSfx = new Audio("dodge.mp3");
+        const rollSfx = new Audio("assets/sounds/dodge.mp3");
         rollSfx.volume = 0.4;
         rollSfx.play().catch(() => {});
 
