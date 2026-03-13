@@ -29,9 +29,9 @@ export function setupCollisions(collisionManager) {
         if (!hitbox.hasHit(enemy)) {
             hitbox.markHit(enemy);
 
-            // Play sword hit sound effect
-            const hitSfx = new Audio("swordHit.wav");
-            hitSfx.volume = 0.4;
+            // Play hit sound effect (dream or normal)
+            const hitSfx = new Audio(hitbox.owner.inDreamState ? "dreamDashHit.mp3" : "swordHit.wav");
+            hitSfx.volume = hitbox.owner.inDreamState ? 0.4 : 0.1;
             hitSfx.play().catch(() => {});
 
             if (enemy.takeDamage) {

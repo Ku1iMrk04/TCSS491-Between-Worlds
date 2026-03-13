@@ -16,8 +16,8 @@ class MusicManager {
         this.tracks = {};       // name -> HTMLAudioElement
         this.current = null;    // currently playing element
         this.currentName = null;
-        this.volume = 0.1;      // slider ratio 0-1
-        this.maxVolume = 0.25;  // audio element never exceeds this
+        this.volume = 0.4;      // slider ratio 0-1
+        this.maxVolume = 0.5;  // audio element never exceeds this
     }
 
     /**

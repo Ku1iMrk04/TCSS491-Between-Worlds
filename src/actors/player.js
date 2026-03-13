@@ -122,6 +122,7 @@ class Player extends Actor {
                 this.dreamMeter = 0;
                 this.inDreamState = false;
                 this.speed /= this.dreamSpeedMultiplier;
+                if (this.game.musicManager) this.game.musicManager.play("gameplay");
             }
         } else {
             this.dreamMeter = Math.min(this.dreamMeterMax, this.dreamMeter + this.dreamMeterRechargeRate * dt);
@@ -146,6 +147,10 @@ class Player extends Actor {
             this.inDreamState = true;
             this.speed *= this.dreamSpeedMultiplier;
             this.game.eKey = false;
+            const sfx = new Audio("dreamActivate.mp3");
+            sfx.volume = 0.4;
+            sfx.play().catch(() => {});
+            if (this.game.musicManager) this.game.musicManager.play("dream");
         }
 
         // Track if player was grounded last frame
