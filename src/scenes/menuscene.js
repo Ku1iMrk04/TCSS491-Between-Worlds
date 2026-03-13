@@ -28,6 +28,7 @@ class MenuScene extends Scene {
         // Volume slider
         this.sliderDragging = false;
         this.sliderRect = null;
+        this.muteBtnRect = null;
     }
 
     _spawnParticle(randomY = false) {
@@ -43,6 +44,18 @@ class MenuScene extends Scene {
             lifeSpeed: 0.0018 + Math.random() * 0.004,
             color:     colors[Math.floor(Math.random() * colors.length)],
         };
+    }
+
+    enter() {
+        if (this.game.soundManager) {
+            this.game.soundManager.playMusic("menu");
+        }
+    }
+
+    exit() {
+        if (this.game.soundManager) {
+            this.game.soundManager.stopMusic();
+        }
     }
 
     update() {
@@ -62,9 +75,9 @@ class MenuScene extends Scene {
                     this.sliderDragging = true;
                 }
             }
-            if (this.sliderDragging && this.game.musicManager) {
+            if (this.sliderDragging && this.game.soundManager) {
                 const ratio = Math.max(0, Math.min(1, (mouse.x - r.x) / r.w));
-                this.game.musicManager.setVolume(ratio);
+                this.game.soundManager.setVolume(ratio);
             }
         }
 
@@ -80,7 +93,12 @@ class MenuScene extends Scene {
         }
     }
 
+    _ensureMusic() {
+        if (this.game.soundManager) this.game.soundManager.playMusic("menu");
+    }
+
     onKeyDown(event) {
+        this._ensureMusic();
         if (this.overlay) {
             if (event.code === "Escape") this.overlay = null;
             return;
@@ -99,6 +117,7 @@ class MenuScene extends Scene {
     }
 
     onClick(x, y) {
+        this._ensureMusic();
         if (this.overlay) {
             if (this.closeBtnRect) {
                 const r = this.closeBtnRect;
@@ -108,6 +127,15 @@ class MenuScene extends Scene {
             }
             return;
         }
+        // Mute button
+        if (this.muteBtnRect) {
+            const r = this.muteBtnRect;
+            if (x >= r.x && x <= r.x + r.w && y >= r.y && y <= r.y + r.h) {
+                if (this.game.soundManager) this.game.soundManager.toggleMute();
+                return;
+            }
+        }
+
         for (let i = 0; i < this.buttonRects.length; i++) {
             const r = this.buttonRects[i];
             if (x >= r.x && x <= r.x + r.w && y >= r.y && y <= r.y + r.h) {
@@ -197,7 +225,6 @@ class MenuScene extends Scene {
         ctx.font         = '15px "Oxanium", sans-serif';
         ctx.textAlign    = "center";
         ctx.textBaseline = "alphabetic";
-        ctx.fillText("↑ ↓ Arrow Keys + Enter  |  or Click", cx, h - 36);
         ctx.restore();
 
         // Overlay (How to Play / Credits)
@@ -215,7 +242,7 @@ class MenuScene extends Scene {
         const sliderY = h - 90;
         this.sliderRect = { x: sliderX, y: sliderY, w: sliderW, h: sliderH };
 
-        const vol = this.game.musicManager ? this.game.musicManager.volume : 0.4;
+        const vol = this.game.soundManager ? this.game.soundManager.volume : 0.4;
         const thumbX = sliderX + vol * sliderW;
 
         ctx.save();
@@ -257,6 +284,31 @@ class MenuScene extends Scene {
         ctx.font = '13px "Oxanium", sans-serif';
         ctx.fillStyle = "rgba(220,180,255,0.55)";
         ctx.fillText(`${Math.round(vol * 100)}%`, cx, sliderY + sliderH + 20);
+
+        // Mute button to the right of the slider
+        const isMuted = this.game.soundManager?.muted ?? false;
+        const btnW = 60, btnH = 26;
+        const btnX = sliderX + sliderW + 18;
+        const btnY = sliderY - btnH / 2 + sliderH / 2;
+        this.muteBtnRect = { x: btnX, y: btnY, w: btnW, h: btnH };
+
+        ctx.beginPath();
+        ctx.roundRect(btnX, btnY, btnW, btnH, 5);
+        ctx.fillStyle = isMuted
+            ? "rgba(120, 20, 20, 0.7)"
+            : "rgba(20, 5, 45, 0.7)";
+        ctx.fill();
+        ctx.strokeStyle = isMuted
+            ? "rgba(220, 80, 80, 0.7)"
+            : "rgba(120, 70, 180, 0.5)";
+        ctx.lineWidth = 1;
+        ctx.stroke();
+
+        ctx.font = '600 11px "Oxanium", sans-serif';
+        ctx.fillStyle = isMuted ? "rgba(255,120,120,0.9)" : "rgba(192,132,252,0.85)";
+        ctx.textAlign = "center";
+        ctx.textBaseline = "middle";
+        ctx.fillText(isMuted ? "UNMUTE" : "MUTE", btnX + btnW / 2, btnY + btnH / 2);
 
         ctx.restore();
     }

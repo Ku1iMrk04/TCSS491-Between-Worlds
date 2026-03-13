@@ -49,9 +49,7 @@ class DreamSlash extends State {
         entity.dreamMeter = Math.max(0, entity.dreamMeter - entity.dreamBlinkCost);
 
         // Play dream dash sound
-        const missSfx = new Audio("assets/sounds/dreamDashMiss.mp3");
-        missSfx.volume = 0.4;
-        missSfx.play().catch(() => {});
+        if (entity.game.soundManager) entity.game.soundManager.playSfx("dreamDashMiss");
 
         // Reuse roll animation for the blink
         if (entity.animator) {
@@ -108,7 +106,7 @@ class DreamSlash extends State {
         if (entity.dreamMeter <= 0 && entity.inDreamState) {
             entity.inDreamState = false;
             entity.speed /= entity.dreamSpeedMultiplier;
-            if (entity.game.musicManager) entity.game.musicManager.play("gameplay");
+            if (entity.game.soundManager) entity.game.soundManager.playMusic("gameplay");
         }
     }
 }

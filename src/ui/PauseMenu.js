@@ -165,9 +165,9 @@ class PauseMenu {
             }
         }
 
-        if (this.sliderDragging && this.game.musicManager) {
+        if (this.sliderDragging && this.game.soundManager) {
             const ratio = Math.max(0, Math.min(1, (mouse.x - r.x) / r.w));
-            this.game.musicManager.setVolume(ratio);
+            this.game.soundManager.setVolume(ratio);
         }
     }
 
@@ -177,7 +177,7 @@ class PauseMenu {
         const sliderX = panelX + (panelW - sliderW) / 2;
         this.sliderRect = { x: sliderX, y, w: sliderW, h: sliderH };
 
-        const vol = this.game.musicManager ? this.game.musicManager.volume : 0.4;
+        const vol = this.game.soundManager ? this.game.soundManager.volume : 0.4;
         const thumbX = sliderX + vol * sliderW;
 
         ctx.save();

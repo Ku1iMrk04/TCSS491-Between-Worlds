@@ -122,7 +122,7 @@ class Player extends Actor {
                 this.dreamMeter = 0;
                 this.inDreamState = false;
                 this.speed /= this.dreamSpeedMultiplier;
-                if (this.game.musicManager) this.game.musicManager.play("gameplay");
+                if (this.game.soundManager) this.game.soundManager.playMusic("gameplay");
             }
         } else {
             this.dreamMeter = Math.min(this.dreamMeterMax, this.dreamMeter + this.dreamMeterRechargeRate * dt);
@@ -147,10 +147,10 @@ class Player extends Actor {
             this.inDreamState = true;
             this.speed *= this.dreamSpeedMultiplier;
             this.game.eKey = false;
-            const sfx = new Audio("assets/sounds/dreamActivate.mp3");
-            sfx.volume = 0.4;
-            sfx.play().catch(() => {});
-            if (this.game.musicManager) this.game.musicManager.play("dream");
+            if (this.game.soundManager) {
+                this.game.soundManager.playSfx("dreamActivate");
+                this.game.soundManager.playMusic("dream");
+            }
         }
 
         // Track if player was grounded last frame
@@ -176,17 +176,26 @@ class Player extends Actor {
 
             // Attack input with left click (can attack mid-air)
             if (this.game.click && this.currentState !== this.states["attack"] && this.currentState !== this.states["roll"]) {
+                // Capture attack direction RIGHT NOW at click time for maximum responsiveness
+                let atkDx = 0, atkDy = 0;
+                if (this.game.left) atkDx = -1;
+                else if (this.game.right) atkDx = 1;
+                if (this.game.up) atkDy = -1;
+                else if (this.game.down) atkDy = 1;
+                if (atkDx === 0 && atkDy === 0) {
+                    if (!this.grounded && this.vy > 0) {
+                        atkDy = 1;
+                    } else {
+                        atkDx = this.facing === "left" ? -1 : 1;
+                    }
+                }
+                this.pendingAttackDirX = atkDx;
+                this.pendingAttackDirY = atkDy;
+
                 if (this.inDreamState && this.dreamSlashCooldownTimer <= 0) {
                     // Compute dash direction from WASD input (same as normal attack)
                     const maxDist = this.states["dreamslashaim"].maxDashDistance;
-                    let dx = 0, dy = 0;
-                    if (this.game.left) dx = -1;
-                    else if (this.game.right) dx = 1;
-                    if (this.game.up) dy = -1;
-                    else if (this.game.down) dy = 1;
-                    if (dx === 0 && dy === 0) {
-                        dx = this.facing === "left" ? -1 : 1;
-                    }
+                    let dx = atkDx, dy = atkDy;
                     if (dx !== 0 && dy !== 0) {
                         dx /= Math.SQRT2;
                         dy /= Math.SQRT2;

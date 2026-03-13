@@ -7,6 +7,7 @@ const PAUSE_BUTTON_LINE_INSET_X  = 10;
 const PAUSE_BUTTON_LINE_START_Y  = 12;
 const PAUSE_BUTTON_LINE_GAP      = 8;
 const PAUSE_BUTTON_LINE_THICKNESS = 3;
+const MUTE_BUTTON_GAP            = 8;
 
 class GameUI {
     constructor(game, levelName = "Level 1") {
@@ -37,8 +38,90 @@ class GameUI {
         this.drawLevelLabel(ctx);
     }
 
+    getMuteButtonRect() {
+        const canvas = this.game?.ctx?.canvas;
+        if (!canvas) return null;
+        const pauseRect = this.getPauseButtonRect();
+        if (!pauseRect) return null;
+        return {
+            x: pauseRect.x - PAUSE_BUTTON_SIZE - MUTE_BUTTON_GAP,
+            y: PAUSE_BUTTON_MARGIN_TOP,
+            w: PAUSE_BUTTON_SIZE,
+            h: PAUSE_BUTTON_SIZE,
+        };
+    }
+
+    drawMuteButton(ctx) {
+        const rect = this.getMuteButtonRect();
+        if (!rect) return;
+
+        const isMuted = this.game?.soundManager?.muted ?? false;
+
+        ctx.save();
+        ctx.fillStyle = "rgba(10, 0, 25, 0.65)";
+        ctx.strokeStyle = "rgba(160, 100, 220, 0.6)";
+        ctx.lineWidth = 1.5;
+        ctx.beginPath();
+        ctx.roundRect(rect.x, rect.y, rect.w, rect.h, 6);
+        ctx.fill();
+        ctx.stroke();
+
+        const cx = rect.x + rect.w / 2;
+        const cy = rect.y + rect.h / 2;
+        this._drawSpeakerIcon(ctx, cx, cy, isMuted);
+        ctx.restore();
+    }
+
+    _drawSpeakerIcon(ctx, cx, cy, muted) {
+        const s = 8;
+        ctx.save();
+        ctx.translate(cx - 2, cy);
+
+        const color = muted ? "rgba(255, 110, 110, 0.9)" : "rgba(220, 180, 255, 0.9)";
+        ctx.fillStyle = color;
+        ctx.strokeStyle = color;
+        ctx.lineWidth = 1.5;
+
+        // Speaker body rectangle
+        ctx.fillRect(-s * 1.1, -s * 0.55, s * 0.65, s * 1.1);
+
+        // Speaker cone triangle
+        ctx.beginPath();
+        ctx.moveTo(-s * 0.45, -s * 0.55);
+        ctx.lineTo(s * 0.35,  -s * 1.05);
+        ctx.lineTo(s * 0.35,   s * 1.05);
+        ctx.lineTo(-s * 0.45,  s * 0.55);
+        ctx.closePath();
+        ctx.fill();
+
+        if (muted) {
+            ctx.strokeStyle = "rgba(255, 80, 80, 0.9)";
+            ctx.lineWidth = 2.5;
+            ctx.beginPath();
+            ctx.moveTo(s * 0.5,  -s * 0.8);
+            ctx.lineTo(s * 1.3,   s * 0.8);
+            ctx.stroke();
+            ctx.beginPath();
+            ctx.moveTo(s * 1.3,  -s * 0.8);
+            ctx.lineTo(s * 0.5,   s * 0.8);
+            ctx.stroke();
+        } else {
+            ctx.strokeStyle = "rgba(220, 180, 255, 0.7)";
+            ctx.lineWidth = 1.8;
+            ctx.beginPath();
+            ctx.arc(s * 0.45, 0, s * 0.65, -Math.PI * 0.38, Math.PI * 0.38);
+            ctx.stroke();
+            ctx.beginPath();
+            ctx.arc(s * 0.45, 0, s * 1.15, -Math.PI * 0.38, Math.PI * 0.38);
+            ctx.stroke();
+        }
+
+        ctx.restore();
+    }
+
     drawOverlay(ctx, isPaused, showPauseControls) {
         this.drawPauseButton(ctx);
+        this.drawMuteButton(ctx);
         if (isPaused) {
             this.pauseMenu.draw(ctx, showPauseControls);
             this.pauseMenuButtonRects = this.pauseMenu.buttonRects;
@@ -168,16 +251,15 @@ class GameUI {
         const ratio  = max > 0 ? Math.min(meter / max, 1) : 0;
         const isFull = ratio >= 1;
 
-        const MARGIN_LEFT   = 36;
-        const MARGIN_BOTTOM = 52;
-        const BAT_W         = 200;
-        const BAT_H         = 22;
-        const NUB_W         = 7;
-        const NUB_H         = 12;
+        const MARGIN_BOTTOM = 48;
+        const BAT_W         = 340;
+        const BAT_H         = 34;
+        const NUB_W         = 10;
+        const NUB_H         = 18;
         const SEGMENTS      = 7;
-        const CORNER        = 3;
+        const CORNER        = 5;
 
-        const bx     = MARGIN_LEFT;
+        const bx     = ctx.canvas.width / 2 - BAT_W / 2;
         const by     = ctx.canvas.height - MARGIN_BOTTOM - BAT_H;
         const labelX = bx + BAT_W / 2;
         const pulse  = 0.5 + 0.5 * Math.sin(Date.now() / 250);

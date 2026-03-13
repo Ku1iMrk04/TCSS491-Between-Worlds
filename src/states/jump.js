@@ -6,9 +6,7 @@ class Jump extends State {
         const entity = this.myEntity;
 
         // Play jump sound effect
-        const jumpSfx = new Audio("assets/sounds/jump.wav");
-        jumpSfx.volume = 0.4;
-        jumpSfx.play().catch(() => {});
+        if (entity.game.soundManager) entity.game.soundManager.playSfx("jump");
 
         // Apply initial jump velocity (negative = upward)
         entity.vy = -600;  // Jump strength
@@ -69,9 +67,7 @@ class Jump extends State {
         // Reset vertical velocity when landing
         if (this.myEntity && this.myEntity.grounded) {
             this.myEntity.vy = 0;
-            const sfx = new Audio("assets/sounds/softLanding.mp3");
-            sfx.volume = 0.4;
-            sfx.play().catch(() => {});
+            if (this.myEntity.game.soundManager) this.myEntity.game.soundManager.playSfx("softLanding");
         }
     }
 }
