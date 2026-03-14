@@ -28,9 +28,9 @@ class Animator {
         this.isLooping = true;
         this.is_outline = false;
         this.transparency = 1.0;
+        this.manualFrame = null;
+        this._animationFinished = false;
         this._frameTimer = 0;
-        this.frameGap = this.spriteAtlas.getFrameGap();
-        this.initialFrameGap = this.frameGap - this.spriteAtlas.marginWidth;
     }
 
     /**
@@ -63,6 +63,8 @@ class Animator {
             this.currAnimationTransform = this.spriteAtlas.getAnimationSize(name);
             this.direction = direction;
             this.isLooping = looping;
+            this.manualFrame = null;
+            this._animationFinished = false;
             this._frameTimer = 0;
             this.animationMissing = false;
         } else {
@@ -85,6 +87,33 @@ class Animator {
         this.isLooping = !!should_loop;
     };
 
+    setFrame(frameIndex) {
+        const frameCount = this.getFrameCount();
+        if (frameCount <= 0) {
+            this.currentFrame = 0;
+            return;
+        }
+
+        this.currentFrame = Math.max(0, Math.min(frameCount - 1, Math.round(frameIndex)));
+    };
+
+    setManualFrame(frameIndex) {
+        this.manualFrame = frameIndex;
+        this.setFrame(frameIndex);
+    };
+
+    clearManualFrame() {
+        this.manualFrame = null;
+    };
+
+    getFrameCount(animationName = this.currAnimationName) {
+        return this.spriteAtlas?.getAnimation(animationName)?.frameCount ?? 0;
+    };
+
+    isAnimationFinished() {
+        return this._animationFinished;
+    };
+
     showOutline(is_outline) {
         this.is_outline = !!is_outline;
     };
@@ -97,29 +126,39 @@ class Animator {
     };
 
     update(dt) {
-        // Advance frames based on dt and speed
-        this._frameTimer += dt;
-
         if (!this.spriteAtlas || !this.spriteAtlas.metadata) return;
-        var anim = this.spriteAtlas.metadata.animations[this.currAnimationName];
+        var anim = this.spriteAtlas.getAnimation(this.currAnimationName);
         if (!anim) return;
 
         var frameCount = anim.frameCount;
+        if (frameCount <= 0) return;
 
-        if (this._frameTimer >= this.speed) {
+        if (this.manualFrame !== null) {
+            this.setFrame(this.manualFrame);
+            this._animationFinished = false;
+            return;
+        }
+
+        if (this.speed <= 0) {
+            return;
+        }
+
+        // Advance frames based on dt and speed
+        this._frameTimer += dt;
+
+        while (this._frameTimer >= this.speed) {
+            this._frameTimer -= this.speed;
             this.currentFrame++;
-            this._frameTimer = 0;
             if (this.currentFrame >= frameCount) {
                 if (this.isLooping) {
                     this.currentFrame = 0;
+                    this._animationFinished = false;
                 } else {
                     this.currentFrame = frameCount - 1;
+                    this._animationFinished = true;
+                    break;
                 }
             }
-
-            // Log when frame changes with coordinates
-            var sourceX = this.currentFrame * (anim.frameWidth + 3) + 2;
-            //console.log("Frame changed to:", this.currentFrame, "| sourceX:", sourceX, "sourceY:", anim.yStart, "| animation:", this.currAnimationName);
         }
     };
 
@@ -153,7 +192,7 @@ class Animator {
             return;
         }
 
-        var anim = this.spriteAtlas.metadata.animations[this.currAnimationName];
+        var anim = this.spriteAtlas.getAnimation(this.currAnimationName);
 
         // If animation is missing, draw NoSpriteBudda.png fallback
         if (!anim || this.animationMissing) {
@@ -178,27 +217,25 @@ class Animator {
 
         // If spriteSheet image exists, draw the actual sprite
         if (this.spriteAtlas.spriteSheet) {
-            // Each frame is 37x37 (35px sprite + 2px total padding)
-            // Skip 1px padding on left and top
-
-            var sourceX = this.currentFrame * (anim.frameWidth + this.frameGap) + this.initialFrameGap;
-
-            var sourceY = anim.yStart + 2;
-            // console.log("Frame changed to:", this.currentFrame, "| sourceX:", sourceX, "sourceY:", anim.yStart, "| animation:", this.currAnimationName);
+            const source = this.spriteAtlas.getFrameSource(this.currAnimationName, this.currentFrame);
+            if (!source) {
+                ctx.restore();
+                return;
+            }
 
             // Handle direction flipping if needed
             if (this.direction === "left") {
                 ctx.scale(-1, 1);
                 ctx.drawImage(
                     this.spriteAtlas.spriteSheet,
-                    sourceX , sourceY, anim.frameWidth, anim.frameHeight,
+                    source.x, source.y, source.w, source.h,
                     -x - w, y + yOffset, w, h
                 );
             } else {
                 ctx.drawImage(
                     this.spriteAtlas.spriteSheet,
-                    sourceX , sourceY,
-                    anim.frameWidth, anim.frameHeight,
+                    source.x, source.y,
+                    source.w, source.h,
                     x, y + yOffset, w , h
                 );
             }
