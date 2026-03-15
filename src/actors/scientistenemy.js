@@ -232,7 +232,8 @@ class ScientistEnemy extends Enemy {
 
     getAnimatorDrawPosition() {
         const anchorMode = this.animationConfig.anchor?.mode ?? "topLeft";
-        const drawWidth = this.animator.currAnimationTransform.w * this.animator.scale;
+        const frameTransform = this.animator.getCurrentFrameTransform();
+        const drawWidth = frameTransform.w * this.animator.scale;
         const animation = this.getAnimationDefinition(this.animator.currAnimationName);
         const drawOffsetX = Math.round((animation?.drawOffsetX ?? 0) * this.animator.scale);
         const drawOffsetY = Math.round((animation?.drawOffsetY ?? 0) * this.animator.scale);

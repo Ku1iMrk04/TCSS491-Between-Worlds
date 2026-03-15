@@ -46,9 +46,9 @@ class Animator {
         const animations = this.spriteAtlas.metadata.animations;
 
         for (const animName in animations) {
-            const anim = animations[animName];
-            if (anim.frameHeight > maxHeight) {
-                maxHeight = anim.frameHeight;
+            const size = this.spriteAtlas.getAnimationSize(animName);
+            if (size.h > maxHeight) {
+                maxHeight = size.h;
             }
         }
 
@@ -107,7 +107,32 @@ class Animator {
     };
 
     getFrameCount(animationName = this.currAnimationName) {
-        return this.spriteAtlas?.getAnimation(animationName)?.frameCount ?? 0;
+        const animation = this.spriteAtlas?.getAnimation(animationName);
+        if (!animation) {
+            return 0;
+        }
+
+        return animation.frameCount ?? animation.frames?.length ?? 0;
+    };
+
+    getCurrentFrameSource() {
+        if (!this.spriteAtlas || !this.spriteAtlas.metadata) {
+            return null;
+        }
+
+        return this.spriteAtlas.getFrameSource(this.currAnimationName, this.currentFrame);
+    };
+
+    getCurrentFrameTransform() {
+        const source = this.getCurrentFrameSource();
+        if (!source) {
+            return this.currAnimationTransform;
+        }
+
+        return {
+            w: source.w,
+            h: source.h
+        };
     };
 
     isAnimationFinished() {
@@ -130,7 +155,7 @@ class Animator {
         var anim = this.spriteAtlas.getAnimation(this.currAnimationName);
         if (!anim) return;
 
-        var frameCount = anim.frameCount;
+        var frameCount = this.getFrameCount();
         if (frameCount <= 0) return;
 
         if (this.manualFrame !== null) {
@@ -169,8 +194,9 @@ class Animator {
         // Disable image smoothing for crisp pixel art
         ctx.imageSmoothingEnabled = false;
 
-        var w = this.currAnimationTransform.w * this.scale;
-        var h = this.currAnimationTransform.h * this.scale;
+        const frameTransform = this.getCurrentFrameTransform();
+        var w = frameTransform.w * this.scale;
+        var h = frameTransform.h * this.scale;
 
         // Calculate Y offset to bottom-align sprite based on max animation height
         // This ensures all animations align to the same ground level
@@ -217,7 +243,7 @@ class Animator {
 
         // If spriteSheet image exists, draw the actual sprite
         if (this.spriteAtlas.spriteSheet) {
-            const source = this.spriteAtlas.getFrameSource(this.currAnimationName, this.currentFrame);
+            const source = this.getCurrentFrameSource();
             if (!source) {
                 ctx.restore();
                 return;

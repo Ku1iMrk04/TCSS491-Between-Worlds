@@ -21,9 +21,34 @@ class SpriteAtlas {
             console.warn(`Animation "${animationName}" not found in metadata`);
             return { w: 32, h: 32 }; // fallback size
         }
+
+        if (Number.isFinite(animation.frameWidth) && Number.isFinite(animation.frameHeight)) {
+            return {
+                w: animation.frameWidth,
+                h: animation.frameHeight
+            };
+        }
+
+        if (Array.isArray(animation.frames) && animation.frames.length > 0) {
+            let maxWidth = 0;
+            let maxHeight = 0;
+
+            for (const frame of animation.frames) {
+                const frameWidth = frame.w ?? frame.width ?? 0;
+                const frameHeight = frame.h ?? frame.height ?? 0;
+                maxWidth = Math.max(maxWidth, frameWidth);
+                maxHeight = Math.max(maxHeight, frameHeight);
+            }
+
+            return {
+                w: maxWidth || 32,
+                h: maxHeight || 32
+            };
+        }
+
         return {
-            w: animation.frameWidth,
-            h: animation.frameHeight
+            w: 32,
+            h: 32
         };
     }
 
@@ -55,6 +80,17 @@ class SpriteAtlas {
         const animation = this.getAnimation(animationName);
         if (!animation) {
             return null;
+        }
+
+        if (Array.isArray(animation.frames) && animation.frames.length > 0) {
+            const clampedIndex = Math.max(0, Math.min(animation.frames.length - 1, frameIndex));
+            const frame = animation.frames[clampedIndex];
+            return {
+                x: frame.x ?? frame.sourceX ?? 0,
+                y: frame.y ?? frame.sourceY ?? 0,
+                w: frame.w ?? frame.width ?? animation.frameWidth ?? 32,
+                h: frame.h ?? frame.height ?? animation.frameHeight ?? 32
+            };
         }
 
         const hasExplicitX = Number.isFinite(animation.xStart) ||
