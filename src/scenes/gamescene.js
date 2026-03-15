@@ -203,7 +203,10 @@ class GameScene extends Scene {
         if (this.levelCompleteTriggered) return;
 
         if (this.player && this.player.removeFromWorld) {
-            this.game.sceneManager.changeScene(new DeathScene(this.game, this.levelBgImage, this.levelIndex));
+            const frozenFrame = this.captureDeathFrame();
+            this.game.sceneManager.changeScene(
+                new DeathScene(this.game, this.levelBgImage, this.levelIndex, frozenFrame)
+            );
             return;
         }
 
@@ -392,6 +395,25 @@ class GameScene extends Scene {
 
     drawOverlay(ctx) {
         this.ui.drawOverlay(ctx, this.isPaused, this.showPauseControls);
+    }
+
+    captureDeathFrame() {
+        const sourceCanvas = this.game?.ctx?.canvas;
+        if (!sourceCanvas || typeof document === "undefined") {
+            return null;
+        }
+
+        const frozenFrame = document.createElement("canvas");
+        frozenFrame.width = sourceCanvas.width;
+        frozenFrame.height = sourceCanvas.height;
+        const frozenCtx = frozenFrame.getContext("2d");
+        if (!frozenCtx) {
+            return null;
+        }
+
+        frozenCtx.imageSmoothingEnabled = false;
+        frozenCtx.drawImage(sourceCanvas, 0, 0);
+        return frozenFrame;
     }
 
     isPointInsideRect(x, y, rect) {
