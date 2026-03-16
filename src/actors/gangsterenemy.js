@@ -48,6 +48,7 @@ class GangsterEnemy extends ScientistEnemy {
         // Same idle pose while firing.
         this.animator = new Animator("gangsteridle_3", this.game.assetManager);
         this.animator.setScale(this.scale);
+        this.usesAdvancedScientistAnimations = false;
         this.idleAnimation = "idle";
         this.chaseAnimation = "idle";
         this.attackAnimation = "idle";

@@ -1,0 +1,76 @@
+{
+  "sheet": "scientist_sprite_sheet.png",
+  "sheetWidth": 570,
+  "sheetHeight": 202,
+  "anchor": {
+    "mode": "bottomCenter"
+  },
+  "animations": {
+    "idle": {
+      "xStart": 0,
+      "yStart": 0,
+      "frameCount": 11,
+      "frameWidth": 24,
+      "frameHeight": 40,
+      "xStride": 24,
+      "loop": true,
+      "frameDuration": 0.08,
+      "drawOffsetX": 0,
+      "drawOffsetY": 0
+    },
+    "walk": {
+      "xStart": 0,
+      "yStart": 40,
+      "frameCount": 11,
+      "frameWidth": 25,
+      "frameHeight": 39,
+      "xStride": 25,
+      "loop": true,
+      "frameDuration": 0.07,
+      "drawOffsetX": 0,
+      "drawOffsetY": 1
+    },
+    "turn": {
+      "xStart": 0,
+      "yStart": 79,
+      "frameCount": 6,
+      "frameWidth": 37,
+      "frameHeight": 37,
+      "xStride": 37,
+      "loop": false,
+      "frameDuration": 0.06,
+      "drawOffsetX": 0,
+      "drawOffsetY": 3
+    },
+    "aim": {
+      "xStart": 0,
+      "yStart": 116,
+      "frameCount": 19,
+      "frameWidth": 30,
+      "frameHeight": 51,
+      "xStride": 30,
+      "loop": false,
+      "drawOffsetX": 0,
+      "drawOffsetY": 0
+    },
+    "death": {
+      "xStart": 0,
+      "yStart": 167,
+      "frameCount": 14,
+      "frameWidth": 39,
+      "frameHeight": 35,
+      "xStride": 39,
+      "loop": false,
+      "frameDuration": 0.05,
+      "holdAfterFinish": 2.0,
+      "drawOffsetX": 0,
+      "drawOffsetY": 0
+    }
+  },
+  "aimAngleRangeDegrees": {
+    "min": -85,
+    "max": 85
+  },
+  "turnPlaybackMode": "flip",
+  "turnUnflippedEndFacing": "right"
+}

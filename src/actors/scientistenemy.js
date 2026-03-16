@@ -6,10 +6,10 @@ const SCIENTIST_HEALTH = 1;
 const SCIENTIST_BASE_SPEED = 30; // Used for projectile speed calculation
 const SCIENTIST_SPEED = 275; // Matches player speed
 const SCIENTIST_ATTACK_RANGE = 560; // Desired shooting distance
-const SCIENTIST_ATTACK_DELAY = 0.5; // Delay before shooting
+const SCIENTIST_ATTACK_DELAY = 0.3; // Delay before shooting
 const SCIENTIST_ATTACK_COOLDOWN_SECONDS = 1.5; // Cooldown between shots
-const SCIENTIST_PROJECTILE_SPEED_MULTIPLIER = 30; // Fast Katana-Zero-style projectiles
-const SCIENTIST_PROJECTILE_SPEED = SCIENTIST_BASE_SPEED * SCIENTIST_PROJECTILE_SPEED_MULTIPLIER; // 900 px/s
+const SCIENTIST_PROJECTILE_SPEED_MULTIPLIER = 40; // Fast Katana-Zero-style projectiles
+const SCIENTIST_PROJECTILE_SPEED = SCIENTIST_BASE_SPEED * SCIENTIST_PROJECTILE_SPEED_MULTIPLIER; // 1200 px/s
 const SCIENTIST_PROJECTILE_LIFE = null;
 const SCIENTIST_PROJECTILE_DAMAGE = 5;
 const SCIENTIST_PROJECTILE_RADIUS = 6;
@@ -19,6 +19,13 @@ const SCIENTIST_PROJECTILE_SPAWN_X_INSET = 6;
 const SCIENTIST_PROJECTILE_SPAWN_HEIGHT_RATIO = 0.45;
 const SCIENTIST_MIN_TARGET_DISTANCE = 1;
 const SCIENTIST_CONTACT_DAMAGE = 0;
+const SCIENTIST_SPRITE_NAME = "scientist_sprite_sheet";
+const SCIENTIST_SPRITE_PATH = `assets/${SCIENTIST_SPRITE_NAME}.png`;
+const SCIENTIST_DEFAULT_ANIMATION_SPEED = 0.1;
+const SCIENTIST_DEFAULT_AIM_MIN_DEGREES = -85;
+const SCIENTIST_DEFAULT_AIM_MAX_DEGREES = 85;
+const SCIENTIST_DEFAULT_DEATH_BODY_PERSIST_SECONDS = 2;
+const SCIENTIST_DEFAULT_TURN_UNFLIPPED_END_FACING = "right";
 
 class ScientistEnemy extends Enemy {
     constructor(game, x, y) {
@@ -42,11 +49,209 @@ class ScientistEnemy extends Enemy {
         // Scientists are ranged now; body contact should not be lethal.
         this.contactDamage = SCIENTIST_CONTACT_DAMAGE;
 
-        this.animator = new Animator("enemy_scientist", this.game.assetManager);
+        this.animator = new Animator(SCIENTIST_SPRITE_NAME, this.game.assetManager);
         this.animator.setScale(this.scale);
+        this.animator.setVerticalAdjustment(this.height - (this.animator.maxAnimationHeight * this.scale));
+        this.animationConfig = this.game.assetManager.getMetadata(SCIENTIST_SPRITE_PATH) ?? {};
+        this.usesAdvancedScientistAnimations = true;
+        this.visualFacing = this.facing;
+        this.turnInProgress = false;
+        this.turnTargetFacing = this.facing;
+        this.visualState = "idle";
+        this.deathHoldTimer = null;
         this.idleAnimation = "idle";
         this.chaseAnimation = "walk";
-        this.attackAnimation = "idle";
+        this.attackAnimation = "aim";
+
+        this.setVisualAnimation(this.idleAnimation, this.visualFacing, true);
+    }
+
+    getAnimationDefinition(animationName) {
+        return this.animationConfig.animations?.[animationName] ?? null;
+    }
+
+    getAnimationSpeed(animationName) {
+        return this.getAnimationDefinition(animationName)?.frameDuration ?? SCIENTIST_DEFAULT_ANIMATION_SPEED;
+    }
+
+    getAimAngleRangeDegrees() {
+        const range = this.animationConfig.aimAngleRangeDegrees ?? {};
+        return {
+            min: range.min ?? SCIENTIST_DEFAULT_AIM_MIN_DEGREES,
+            max: range.max ?? SCIENTIST_DEFAULT_AIM_MAX_DEGREES
+        };
+    }
+
+    getDeathBodyPersistSeconds() {
+        return this.getAnimationDefinition("death")?.holdAfterFinish ??
+            SCIENTIST_DEFAULT_DEATH_BODY_PERSIST_SECONDS;
+    }
+
+    getAnimationLoop(animationName, fallbackLoop = true) {
+        const animationLoop = this.getAnimationDefinition(animationName)?.loop;
+        return typeof animationLoop === "boolean" ? animationLoop : fallbackLoop;
+    }
+
+    getTurnRenderDirection(targetFacing) {
+        const playbackMode = this.animationConfig.turnPlaybackMode ?? "flip";
+        const unflippedEndFacing = this.animationConfig.turnUnflippedEndFacing ??
+            SCIENTIST_DEFAULT_TURN_UNFLIPPED_END_FACING;
+        if (playbackMode !== "flip") {
+            return targetFacing;
+        }
+        return targetFacing === unflippedEndFacing ? "right" : "left";
+    }
+
+    isAttackState() {
+        return this.state === "waitingToAttack" || this.state === "attacking";
+    }
+
+    setVisualAnimation(animationName, direction = this.visualFacing, looping = undefined) {
+        const shouldLoop = this.getAnimationLoop(animationName, looping ?? true);
+        if (!this.usesAdvancedScientistAnimations) {
+            this.animator.setAnimation(animationName, direction, shouldLoop);
+            return;
+        }
+
+        const animationChanged = this.animator.currAnimationName !== animationName ||
+            this.animator.direction !== direction ||
+            this.animator.isLooping !== shouldLoop;
+
+        if (animationChanged) {
+            this.animator.setAnimation(animationName, direction, shouldLoop);
+        } else {
+            this.animator.setDirection(direction);
+            this.animator.setLooping(shouldLoop);
+            this.animator.clearManualFrame();
+        }
+
+        this.animator.setSpeed(this.getAnimationSpeed(animationName));
+        this.visualState = animationName;
+    }
+
+    startTurn(targetFacing) {
+        if (!this.usesAdvancedScientistAnimations || targetFacing === this.visualFacing) {
+            return;
+        }
+
+        this.turnInProgress = true;
+        this.turnTargetFacing = targetFacing;
+        this.setVisualAnimation("turn", this.getTurnRenderDirection(targetFacing), false);
+    }
+
+    updateAimFrame(player) {
+        const frameCount = this.animator.getFrameCount("aim");
+        if (!player || frameCount <= 0) {
+            this.animator.clearManualFrame();
+            return;
+        }
+
+        const dx = player.x - this.x;
+        const dy = player.y - this.y;
+        const facingDx = this.visualFacing === "right" ? dx : -dx;
+        const aimAngleDegrees = Math.atan2(dy, facingDx || SCIENTIST_MIN_TARGET_DISTANCE) * (180 / Math.PI);
+        const { min, max } = this.getAimAngleRangeDegrees();
+        const clampedAngle = Math.max(min, Math.min(max, aimAngleDegrees));
+        const normalizedAngle = max === min ? 0 : (clampedAngle - min) / (max - min);
+        const frameIndex = Math.round(normalizedAngle * (frameCount - 1));
+
+        this.animator.setManualFrame(frameIndex);
+    }
+
+    updateAdvancedAnimation(player) {
+        if (!this.usesAdvancedScientistAnimations) {
+            return;
+        }
+
+        if (this.turnInProgress && this.animator.isAnimationFinished()) {
+            this.turnInProgress = false;
+            this.visualFacing = this.turnTargetFacing;
+        }
+
+        if (!this.turnInProgress && this.facing !== this.visualFacing) {
+            this.startTurn(this.facing);
+        }
+
+        if (this.turnInProgress) {
+            return;
+        }
+
+        if (this.isAttackState()) {
+            this.setVisualAnimation("aim", this.visualFacing, false);
+            this.updateAimFrame(player);
+            return;
+        }
+
+        this.animator.clearManualFrame();
+        const nextAnimation = this.state === "chase" && Math.abs(this.vx) > 0
+            ? this.chaseAnimation
+            : this.idleAnimation;
+        this.setVisualAnimation(nextAnimation, this.visualFacing, true);
+    }
+
+    updateDeathSequence(dt) {
+        this.animator.update(dt);
+
+        if (this.deathHoldTimer === null) {
+            if (this.animator.isAnimationFinished()) {
+                this.deathHoldTimer = this.getDeathBodyPersistSeconds();
+            }
+            return;
+        }
+
+        this.deathHoldTimer -= dt;
+        if (this.deathHoldTimer <= 0) {
+            this.removeFromWorld = true;
+        }
+    }
+
+    onDeath() {
+        if (!this.usesAdvancedScientistAnimations) {
+            super.onDeath();
+            return;
+        }
+        if (this.state === "dead") {
+            return;
+        }
+
+        this.state = "dead";
+        this.vx = 0;
+        this.vy = 0;
+        this.alertTimer = 0;
+        this.attackTimer = 0;
+        this.attackDelayTimer = 0;
+        this.stairPursuitTimer = 0;
+        this.contactDamage = 0;
+        this.turnInProgress = false;
+        this.clearTargetMemory();
+        this.collider = null;
+        this.visualFacing = this.animator.direction === "left" ? "left" : "right";
+        this.deathHoldTimer = null;
+        this.setVisualAnimation("death", this.visualFacing, false);
+    }
+
+    getAnimatorDrawPosition() {
+        const anchorMode = this.animationConfig.anchor?.mode ?? "topLeft";
+        const frameTransform = this.animator.getCurrentFrameTransform();
+        const drawWidth = frameTransform.w * this.animator.scale;
+        const animation = this.getAnimationDefinition(this.animator.currAnimationName);
+        const drawOffsetX = Math.round((animation?.drawOffsetX ?? 0) * this.animator.scale);
+        const drawOffsetY = Math.round((animation?.drawOffsetY ?? 0) * this.animator.scale);
+
+        if (anchorMode === "bottomCenter") {
+            const worldAnchorX = this.x + (this.width / 2);
+            const worldAnchorY = this.y + this.height;
+            return {
+                x: Math.round(worldAnchorX - (drawWidth / 2) + drawOffsetX),
+                // Animator already bottom-aligns to the collider height via verticalAdjustment.
+                y: Math.round(worldAnchorY - this.height + drawOffsetY)
+            };
+        }
+
+        return {
+            x: Math.round(this.x + drawOffsetX),
+            y: Math.round(this.y + drawOffsetY)
+        };
     }
 
     /**
@@ -61,6 +266,9 @@ class ScientistEnemy extends Enemy {
     update() {
         const dt = this.game.clockTick || 0;
         if (this.state == "dead") {
+            if (this.usesAdvancedScientistAnimations) {
+                this.updateDeathSequence(dt);
+            }
             return;
         }
         const wasGrounded = this.grounded;
@@ -87,31 +295,36 @@ class ScientistEnemy extends Enemy {
         } = this.getTargetContext(player);
 
         if (targetPos) {
-            var faced = this.facing;
+            const faced = this.facing;
             this.facing = centerDx < 0 ? "left" : "right";
-            if (this.facing !== faced) {
+            if (!this.usesAdvancedScientistAnimations && this.facing !== faced) {
                 this.animator.setDirection(this.facing);
             }
         }
 
         const inAttackRange = horizontalGap <= this.attackRange;
         const inAttackMode  = this.state === "waitingToAttack" || this.state === "attacking";
+        const playerOverlapping = horizontalGap === 0;
 
         // --- IDLE: no target yet, or never triggered and out of range/engagement ---
         if (!targetPos || (!this.hasSeenPlayer && (!canEngage || horizontalDist > this.aggroRange))) {
             if (this.state !== "idle") {
                 this.state = "idle";
-                this.animator.setAnimation(this.idleAnimation, this.facing, true);
+                if (!this.usesAdvancedScientistAnimations) {
+                    this.animator.setAnimation(this.idleAnimation, this.facing, true);
+                }
             }
             this.vx = 0;
 
         // --- HOLD POSITION: already in attack stance ---
         // Leave attack mode if the player escapes range OR breaks line-of-sight.
         } else if (inAttackMode) {
-            if (!inAttackRange || !canSeePlayer) {
+            if (!inAttackRange || (!canSeePlayer && !playerOverlapping)) {
                 // Lost range or lost LoS - chase to close in / reacquire
                 this.state = "chase";
-                this.animator.setAnimation(this.chaseAnimation, this.facing, true);
+                if (!this.usesAdvancedScientistAnimations) {
+                    this.animator.setAnimation(this.chaseAnimation, this.facing, true);
+                }
                 let dir = 0;
                 if (centerDx > this.horizontalDeadzone) dir = 1;
                 else if (centerDx < -this.horizontalDeadzone) dir = -1;
@@ -131,11 +344,13 @@ class ScientistEnemy extends Enemy {
                 }
             }
 
-        // --- ENTER ATTACK STANCE: in range AND has line-of-sight ---
-        } else if (inAttackRange && canSeePlayer) {
+        // --- ENTER ATTACK STANCE: in range AND has line-of-sight (or player is overlapping) ---
+        } else if (inAttackRange && (canSeePlayer || playerOverlapping)) {
             this.state = "waitingToAttack";
             this.attackDelayTimer = this.attackDelay;
-            this.animator.setAnimation(this.attackAnimation, this.facing, true);
+            if (!this.usesAdvancedScientistAnimations) {
+                this.animator.setAnimation(this.attackAnimation, this.facing, true);
+            }
             this.vx = 0;
 
         // --- CHASE (no LoS): pursue last known / current player position ---
@@ -144,13 +359,17 @@ class ScientistEnemy extends Enemy {
                 this.clearTargetMemory();
                 if (this.state !== "idle") {
                     this.state = "idle";
-                    this.animator.setAnimation(this.idleAnimation, this.facing, true);
+                    if (!this.usesAdvancedScientistAnimations) {
+                        this.animator.setAnimation(this.idleAnimation, this.facing, true);
+                    }
                 }
                 this.vx = 0;
             } else {
                 if (this.state !== "chase") {
                     this.state = "chase";
-                    this.animator.setAnimation(this.chaseAnimation, this.facing, true);
+                    if (!this.usesAdvancedScientistAnimations) {
+                        this.animator.setAnimation(this.chaseAnimation, this.facing, true);
+                    }
                 }
                 let dir = 0;
                 if (centerDx > this.horizontalDeadzone) dir = 1;
@@ -163,7 +382,9 @@ class ScientistEnemy extends Enemy {
             if (this.state !== "chase") {
                 this.state = "chase";
                 this.alertTimer = 0.7;
-                this.animator.setAnimation(this.chaseAnimation, this.facing, true);
+                if (!this.usesAdvancedScientistAnimations) {
+                    this.animator.setAnimation(this.chaseAnimation, this.facing, true);
+                }
             }
             let dir = 0;
             if (centerDx > this.horizontalDeadzone) dir = 1;
@@ -171,13 +392,15 @@ class ScientistEnemy extends Enemy {
             this.vx = dir * this.speed;
         }
 
+        this.updateAdvancedAnimation(player);
         this.finalizeUpdate(wasGrounded);
     }
 
     performAttack() {
         const player = this.findPlayer();
         if (!player) return;
-        if (!this.canCurrentlySeePlayer(player)) return;
+        const hGap = Math.max(0, Math.max(player.x - (this.x + this.width), this.x - (player.x + player.width)));
+        if (!this.canCurrentlySeePlayer(player) && hGap > 0) return;
 
         this.attackTimer = this.attackCooldown;
 

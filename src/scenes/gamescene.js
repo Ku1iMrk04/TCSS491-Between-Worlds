@@ -4,6 +4,8 @@ import Enemy from "../actors/enemy.js";
 import GruntEnemy from "../actors/gruntenemy.js";
 import ScientistEnemy from "../actors/scientistenemy.js";
 import GangsterEnemy from "../actors/gangsterenemy.js";
+import Turret from "../actors/turret.js";
+import Door from "../actors/door.js";
 import DeathScene from "./deathscene.js";
 import LevelCompleteScene from "./levelcompletescene.js";
 import MenuScene from "./menuscene.js";
@@ -25,7 +27,7 @@ const LEVEL_SPAWN_POINTS = [
 ];
 
 // Enemy spawn points per level. Each entry is an array of { x, y, type } objects.
-// type can be "grunt", "scientist", or "gangster".
+// type can be "grunt", "scientist", "gangster", or "turret".
 const LEVEL_ENEMY_SPAWNS = [
     // Level 1 (world: 2240 x 1152)
     [
@@ -40,9 +42,11 @@ const LEVEL_ENEMY_SPAWNS = [
         { x: 1024, y: 560, type: "grunt", facing: "right" },       // lower center
         { x: 1184, y: 368, type: "scientist" },   // upper center
         { x: 1760, y: 432, type: "grunt" },       // right platform
+        { x: 2176, y: 560, type: "turret", facing: "left" },      // map end, lower right
     ],
     // Level 3 (world: 2304 x 1600)
     [
+        { x: 64,   y: 800,  type: "turret", facing: "right" },    // upper far left corner
         { x: 576,  y: 800,  type: "grunt" },      // upper platform, left
         { x: 832,  y: 784,  type: "scientist" },  // upper platform, center-left
         { x: 960,  y: 784,  type: "scientist" },  // upper platform, center
@@ -53,13 +57,16 @@ const LEVEL_ENEMY_SPAWNS = [
         { x: 928,  y: 1232, type: "grunt" },      // lower level, center-left
         { x: 1280, y: 1232, type: "grunt" },      // lower level, center
         { x: 1440, y: 1232, type: "scientist" },  // lower level, center-right
+        { x: 2176, y: 800,  type: "turret", facing: "left" },     // upper far right corner
         { x: 448,  y: 1360, type: "grunt" },      // bottom floor
     ],
     // Level 4 (world: 2048 x 1024)
     [
+        { x: 128,  y: 432, type: "turret", facing: "right" },     // top platform, far left
         { x: 1024, y: 432, type: "grunt" },       // upper platform, center
         { x: 1568, y: 496, type: "scientist" },   // upper right
         { x: 1856, y: 496, type: "grunt" },       // upper far right
+        { x: 224,  y: 624, type: "turret", facing: "left" },      // second floor, left side
         { x: 128,  y: 624, type: "scientist" },   // mid left
         { x: 544,  y: 624, type: "grunt" },       // mid center-left
         { x: 960,  y: 656, type: "scientist" },   // mid center
@@ -68,7 +75,16 @@ const LEVEL_ENEMY_SPAWNS = [
         { x: 704,  y: 816, type: "scientist" },   // floor center-left
         { x: 864,  y: 816, type: "grunt" },       // floor center
         { x: 1472, y: 816, type: "grunt" },       // floor right
+        { x: 1920, y: 816, type: "turret", facing: "left" },      // first floor, far right
     ],
+];
+
+// Door spawn positions per level. Each entry is an array of { x, y, w?, h? } objects.
+const LEVEL_DOOR_SPAWNS = [
+    [], // Level 1
+    [], // Level 2
+    [], // Level 3
+    [], // Level 4
 ];
 
 // Exit portal positions per level (x, y in world pixels, center of portal).
@@ -141,6 +157,8 @@ class GameScene extends Scene {
                 enemy = new GangsterEnemy(this.game, spawn.x, spawn.y);
             } else if (spawn.type === "scientist") {
                 enemy = new ScientistEnemy(this.game, spawn.x, spawn.y);
+            } else if (spawn.type === "turret") {
+                enemy = new Turret(this.game, spawn.x, spawn.y);
             } else {
                 enemy = new Enemy(this.game, spawn.x, spawn.y);
             }
@@ -149,6 +167,11 @@ class GameScene extends Scene {
                 enemy.animator.setDirection(spawn.facing);
             }
             this.game.addEntity(enemy);
+        }
+
+        const doorSpawns = LEVEL_DOOR_SPAWNS[this.levelIndex] || [];
+        for (const spawn of doorSpawns) {
+            this.game.addEntity(new Door(this.game, spawn.x, spawn.y, spawn.w, spawn.h));
         }
     }
 
@@ -211,7 +234,10 @@ class GameScene extends Scene {
         if (this.levelCompleteTriggered) return;
 
         if (this.player && this.player.removeFromWorld) {
-            this.game.sceneManager.changeScene(new DeathScene(this.game, this.levelBgImage, this.levelIndex));
+            const frozenFrame = this.captureDeathFrame();
+            this.game.sceneManager.changeScene(
+                new DeathScene(this.game, this.levelBgImage, this.levelIndex, frozenFrame)
+            );
             return;
         }
 
@@ -397,6 +423,25 @@ class GameScene extends Scene {
 
     drawOverlay(ctx) {
         this.ui.drawOverlay(ctx, this.isPaused, this.showPauseControls);
+    }
+
+    captureDeathFrame() {
+        const sourceCanvas = this.game?.ctx?.canvas;
+        if (!sourceCanvas || typeof document === "undefined") {
+            return null;
+        }
+
+        const frozenFrame = document.createElement("canvas");
+        frozenFrame.width = sourceCanvas.width;
+        frozenFrame.height = sourceCanvas.height;
+        const frozenCtx = frozenFrame.getContext("2d");
+        if (!frozenCtx) {
+            return null;
+        }
+
+        frozenCtx.imageSmoothingEnabled = false;
+        frozenCtx.drawImage(sourceCanvas, 0, 0);
+        return frozenFrame;
     }
 
     isPointInsideRect(x, y, rect) {
