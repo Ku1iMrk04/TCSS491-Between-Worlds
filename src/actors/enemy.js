@@ -684,13 +684,21 @@ class Enemy extends Actor {
         return true;
     }
 
-    // Subclasses can override this to add custom idle behavior (e.g. patrolling).
+    // Subclasses can override this to add custom idle behavior.
     // Called every frame while the enemy is in the idle state.
     // vx is already 0 when this runs; override to set it to something else.
     performIdleBehavior() {}
 
+    getAnimatorDrawPosition() {
+        return {
+            x: this.x,
+            y: this.y
+        };
+    }
+
     draw(ctx, game) {
-        this.animator.draw(ctx, this.x, this.y);
+        const renderPosition = this.getAnimatorDrawPosition();
+        this.animator.draw(ctx, renderPosition.x, renderPosition.y);
 
         // Debug: draw vision cone
         if (game && game.showHitboxes) {

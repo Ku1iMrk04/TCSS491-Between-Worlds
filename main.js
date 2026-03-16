@@ -14,8 +14,10 @@ const ASSET_MANAGER = new AssetManager();
 ASSET_MANAGER.queueSprite("assets/ninja.png");
 ASSET_MANAGER.queueSprite("assets/zero.png");
 ASSET_MANAGER.queueSprite("assets/enemy_scientist.png");
-ASSET_MANAGER.queueSprite("assets/grunt_idle.png");
+ASSET_MANAGER.queueSprite("assets/scientist_sprite_sheet.png");
+ASSET_MANAGER.queueSprite("assets/grunt_sprite_sheet.png");
 ASSET_MANAGER.queueSprite("assets/gangsteridle_3.png");
+ASSET_MANAGER.queueSprite("assets/turret_sprite_sheet.png");
 
 // Background images (no metadata needed)
 ASSET_MANAGER.queueDownload("assets/menu_background.png");
