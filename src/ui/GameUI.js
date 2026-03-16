@@ -119,12 +119,52 @@ class GameUI {
         ctx.restore();
     }
 
-    drawOverlay(ctx, isPaused, showPauseControls) {
+    drawOverlay(ctx, isPaused, showPauseControls, player) {
+        // Death overlay takes precedence
+        if (player && player.isDead) {
+            this.drawDeathOverlay(ctx, player);
+            return;
+        }
+
         this.drawPauseButton(ctx);
         this.drawMuteButton(ctx);
         if (isPaused) {
             this.pauseMenu.draw(ctx, showPauseControls);
             this.pauseMenuButtonRects = this.pauseMenu.buttonRects;
+        }
+    }
+
+    drawDeathOverlay(ctx, player) {
+        const w = ctx.canvas.width;
+        const h = ctx.canvas.height;
+        const cx = w / 2;
+
+        // Darkening overlay
+        ctx.save();
+        ctx.fillStyle = "rgba(0, 0, 0, 0.7)";
+        ctx.fillRect(0, 0, w, h);
+        ctx.restore();
+
+        // "YOU DIED" text
+        if (player.deathAnimationComplete) {
+            ctx.save();
+            ctx.textAlign = "center";
+            ctx.textBaseline = "middle";
+            ctx.font = '700 88px "Orbitron", sans-serif';
+            ctx.shadowColor = "#7f1d1d";
+            ctx.shadowBlur = 40;
+            ctx.fillStyle = "#ff4444";
+            ctx.fillText("YOU DIED", cx, h / 2 - 100);
+            ctx.restore();
+
+            // Retry prompt
+            ctx.save();
+            ctx.textAlign = "center";
+            ctx.textBaseline = "middle";
+            ctx.font = '24px "Oxanium", sans-serif';
+            ctx.fillStyle = "rgba(255, 255, 255, 0.8)";
+            ctx.fillText("Press R to restart", cx, h / 2 + 20);
+            ctx.restore();
         }
     }
 

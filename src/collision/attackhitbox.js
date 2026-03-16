@@ -30,9 +30,9 @@ class AttackHitbox {
             angle: options.attackDir ? Math.atan2(options.attackDir.y, options.attackDir.x) : 0
         });
 
-        // Create slash animator for all attacks.
+        // Create slash animator only if owner is in dream state
         // Directional attacks always use "right" facing so canvas rotation handles the direction.
-        if (owner.animator && owner.game.assetManager) {
+        if (owner.inDreamState && owner.animator && owner.game.assetManager) {
             this.animator = new Animator("ninja", owner.game.assetManager);
             this.animator.setScale((owner.scale || 3) * 0.7);
             const slashFacing = this.attackDir ? "right" : owner.facing;
@@ -44,6 +44,8 @@ class AttackHitbox {
             const maxHeight = this.animator.maxAnimationHeight * this.animator.scale;
             const slashHeight = 27 * this.animator.scale;
             this.animator.setVerticalAdjustment(-(maxHeight - slashHeight));
+        } else {
+            this.animator = null;
         }
 
         // Current position
@@ -191,6 +193,54 @@ class AttackHitbox {
                 3, 0, Math.PI * 2
             );
             ctx.fill();
+
+            // Draw slash direction and length indicator
+            if (this.attackDir) {
+                const cx = this.owner.x + this.owner.width / 2;
+                const cy = this.owner.y + this.owner.height / 2;
+                const slashLength = this.animator ? 124 * this.animator.scale : 100;
+
+                // Draw line from player center in attack direction
+                ctx.strokeStyle = "#00ff00";  // Green for slash direction
+                ctx.lineWidth = 3;
+                ctx.globalAlpha = 0.8;
+                ctx.beginPath();
+                ctx.moveTo(cx, cy);
+                ctx.lineTo(
+                    cx + this.attackDir.x * slashLength,
+                    cy + this.attackDir.y * slashLength
+                );
+                ctx.stroke();
+
+                // Draw endpoint circle
+                ctx.fillStyle = "#00ff00";
+                ctx.beginPath();
+                ctx.arc(
+                    cx + this.attackDir.x * slashLength,
+                    cy + this.attackDir.y * slashLength,
+                    5, 0, Math.PI * 2
+                );
+                ctx.fill();
+
+                // Draw slash width indicator
+                ctx.strokeStyle = "#ffff00";  // Yellow for slash width
+                ctx.lineWidth = 1;
+                ctx.globalAlpha = 0.5;
+                const slashWidth = this.animator ? 27 * this.animator.scale : 30;
+                const perpX = -this.attackDir.y;
+                const perpY = this.attackDir.x;
+
+                ctx.beginPath();
+                ctx.moveTo(
+                    cx + perpX * slashWidth / 2,
+                    cy + perpY * slashWidth / 2
+                );
+                ctx.lineTo(
+                    cx - perpX * slashWidth / 2,
+                    cy - perpY * slashWidth / 2
+                );
+                ctx.stroke();
+            }
 
             ctx.restore();
         }
