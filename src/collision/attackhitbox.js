@@ -47,6 +47,7 @@ class AttackHitbox {
             this.animator.setVerticalAdjustment(-(maxHeight - slashHeight));
         } else {
             this.animator = null;
+        }
         this.visualEffect = this.resolveVisualEffect(options.visualEffect, layer);
 
         // Optional attack visual effect.
