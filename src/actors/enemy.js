@@ -690,6 +690,12 @@ class Enemy extends Actor {
     // vx is already 0 when this runs; override to set it to something else.
     performIdleBehavior() {}
 
+    onNearbyDoorDestroyed(doorCenterX) {
+        if (this.state === "dead" || this.state === "waitingToAttack" || this.state === "attacking") return;
+        const enemyCenterX = this.x + this.width / 2;
+        this.facing = doorCenterX < enemyCenterX ? "left" : "right";
+    }
+
     getAnimatorDrawPosition() {
         return {
             x: this.x,

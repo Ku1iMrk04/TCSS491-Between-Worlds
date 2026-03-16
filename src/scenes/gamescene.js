@@ -39,21 +39,22 @@ const LEVEL_ENEMY_SPAWNS = [
     // Level 2 (world: 2304 x 768)
     [
         { x: 512,  y: 432, type: "grunt", facing: "left" },       // left platform
-        { x: 1024, y: 560, type: "grunt", facing: "right" },       // lower center
-        { x: 1184, y: 368, type: "scientist" },   // upper center
+        { x: 928, y: 560, type: "grunt", facing: "left" },      // lower center
+        { x: 1152, y: 560, type: "scientist", facing: "left" },     
+        { x: 1120, y: 368, type: "turret" },   // upper center
         { x: 1760, y: 432, type: "grunt" },       // right platform
         { x: 2176, y: 560, type: "turret", facing: "left" },      // map end, lower right
     ],
     // Level 3 (world: 2304 x 1600)
     [
-        { x: 64,   y: 800,  type: "turret", facing: "right" },    // upper far left corner
+        { x: 64,   y: 800,  type: "grunt", facing: "right" },
         { x: 576,  y: 800,  type: "grunt" },      // upper platform, left
-        { x: 832,  y: 784,  type: "scientist" },  // upper platform, center-left
-        { x: 960,  y: 784,  type: "scientist" },  // upper platform, center
+        { x: 832,  y: 784,  type: "turret" },  // upper platform, center-left
+        { x: 960,  y: 784,  type: "scientist", facing: "right" },  // upper platform, center
         { x: 1280, y: 800,  type: "grunt" },      // upper platform, right
         { x: 1824, y: 928,  type: "grunt" },      // right elevated section
         { x: 416,  y: 1072, type: "scientist" },  // left mid-tier
-        { x: 2176, y: 1072, type: "scientist" },  // far right
+        
         { x: 928,  y: 1232, type: "grunt" },      // lower level, center-left
         { x: 1280, y: 1232, type: "grunt" },      // lower level, center
         { x: 1440, y: 1232, type: "scientist" },  // lower level, center-right
@@ -62,29 +63,46 @@ const LEVEL_ENEMY_SPAWNS = [
     ],
     // Level 4 (world: 2048 x 1024)
     [
-        { x: 128,  y: 432, type: "turret", facing: "right" },     // top platform, far left
+        
+        { x: 1056, y: 432, type: "scientist" },   
         { x: 1024, y: 432, type: "grunt" },       // upper platform, center
-        { x: 1568, y: 496, type: "scientist" },   // upper right
+        
         { x: 1856, y: 496, type: "grunt" },       // upper far right
-        { x: 224,  y: 624, type: "turret", facing: "left" },      // second floor, left side
-        { x: 128,  y: 624, type: "scientist" },   // mid left
+        { x: 1632, y: 496, type: "turret" },       // upper far right
+        { x: 128,  y: 624, type: "scientist", facing: "right" },   // mid left
         { x: 544,  y: 624, type: "grunt" },       // mid center-left
-        { x: 960,  y: 656, type: "scientist" },   // mid center
-        { x: 128,  y: 816, type: "scientist" },   // floor far left
+        
+        { x: 32,  y: 816, type: "turret", facing: "right" },   // floor far left
         { x: 416,  y: 816, type: "grunt" },       // floor left
-        { x: 704,  y: 816, type: "scientist" },   // floor center-left
+        { x: 720,  y: 816, type: "scientist" },   // floor center-left
         { x: 864,  y: 816, type: "grunt" },       // floor center
         { x: 1472, y: 816, type: "grunt" },       // floor right
-        { x: 1920, y: 816, type: "turret", facing: "left" },      // first floor, far right
-    ],
-];
+       
+]];
 
 // Door spawn positions per level. Each entry is an array of { x, y, w?, h? } objects.
 const LEVEL_DOOR_SPAWNS = [
-    [], // Level 1
+    // Level 1 — lower floor
+    [
+        { x: 1440, y: 672 },
+    ],
     [], // Level 2
-    [], // Level 3
-    [], // Level 4
+    // Level 3 — upper platform + bottom floor
+    [
+        { x: 480,  y: 832  },  // upper platform, far left
+        { x: 928,  y: 832  },  // upper platform, center-left
+        { x: 1440, y: 832  },  // upper platform, center-right
+        { x: 352,  y: 1408 },  // bottom floor, far left
+        { x: 1216, y: 1280 },  // bottom floor, center-left
+        { x: 1568, y: 1280 },  // bottom floor, center-right
+    ],
+    // Level 4 — second floor + bottom floor
+    [
+        { x: 800,  y: 608 },   // second floor, center
+        { x: 512,  y: 800 },   // bottom floor, left
+        { x: 864,  y: 800 },   // bottom floor, center-left
+        { x: 1184, y: 800 },   // bottom floor, center-right
+    ],
 ];
 
 // Exit portal positions per level (x, y in world pixels, center of portal).

@@ -7,7 +7,7 @@ const GRUNT_SPEED = 325; // Faster than the player (275 px/s)
 const GRUNT_ATTACK_DELAY = 0.2; // delay before attacking
 const GRUNT_ATTACK_COOLDOWN = 1.0; // 1 second cooldown after attack
 const GRUNT_VISION_RANGE = 420; // Same as default
-const GRUNT_PATROL_RANGE = 96;  // px each direction from spawn point
+const GRUNT_PATROL_DURATION = 3.0; // seconds per patrol direction
 const GRUNT_PATROL_SPEED = 80;  // slower pace while idle
 const GRUNT_SPRITE_NAME = "grunt_sprite_sheet";
 const GRUNT_SPRITE_PATH = `assets/${GRUNT_SPRITE_NAME}.png`;
@@ -33,10 +33,9 @@ class GruntEnemy extends Enemy {
         // Default visionAngle of 180 (90 degree cone on each side) is fine
 
         // Patrol (idle pacing) settings
-        this.patrolRange = GRUNT_PATROL_RANGE;
         this.patrolSpeed = GRUNT_PATROL_SPEED;
         this.patrolDir = 1;       // 1 = right, -1 = left
-        this.patrolOrigin = null; // set on first idle tick
+        this.patrolTimer = Math.random() * GRUNT_PATROL_DURATION; // randomize start phase
 
         this.animator = new Animator(GRUNT_SPRITE_NAME, this.game.assetManager);
         this.animator.setScale(this.scale);
@@ -131,7 +130,7 @@ class GruntEnemy extends Enemy {
             this.visualFacing = this.turnTargetFacing;
         }
 
-        if (!this.turnInProgress && this.facing !== this.visualFacing) {
+        if (!this.turnInProgress && this.facing !== this.visualFacing && !this.isAttackState()) {
             this.startTurn(this.facing);
         }
 
@@ -172,18 +171,13 @@ class GruntEnemy extends Enemy {
     }
 
     performIdleBehavior() {
-        // Lock patrol origin to spawn position on first call
-        if (this.patrolOrigin === null) {
-            this.patrolOrigin = this.x;
-        }
+        const dt = this.game.clockTick || 0;
 
-        // Reverse at patrol boundaries or ledge drop-offs
-        if (this.x >= this.patrolOrigin + this.patrolRange) {
-            this.patrolDir = -1;
-        } else if (this.x <= this.patrolOrigin - this.patrolRange) {
-            this.patrolDir = 1;
-        } else if (this.isLedgeAhead(this.patrolDir)) {
+        // Count down patrol timer; reverse direction when it expires or at a ledge
+        this.patrolTimer -= dt;
+        if (this.patrolTimer <= 0 || this.isLedgeAhead(this.patrolDir)) {
             this.patrolDir = -this.patrolDir;
+            this.patrolTimer = GRUNT_PATROL_DURATION;
         }
 
         // Apply patrol velocity and face the right way
@@ -324,7 +318,7 @@ class GruntEnemy extends Enemy {
             targetReached
         } = this.getTargetContext(player);
 
-        if (targetPos) {
+        if (targetPos && !this.isAttackState()) {
             const faced = this.facing;
             this.facing = centerDx < 0 ? "left" : "right";
             if (!this.usesAdvancedGruntAnimations && this.facing !== faced) {
@@ -332,9 +326,24 @@ class GruntEnemy extends Enemy {
             }
         }
 
+        // Once committed to an attack, see it through regardless of player movement.
+        if (this.isAttackState()) {
+            this.vx = 0;
+            this.turnInProgress = false;
+            if (this.state === "waitingToAttack") {
+                if (this.attackDelayTimer <= 0) {
+                    this.state = "attacking";
+                    this.performAttack();
+                }
+            } else if (this.state === "attacking") {
+                if (this.attackTimer <= 0) {
+                    this.state = "chase";
+                }
+            }
+        }
         // Go idle if no target, or if we haven't spotted the player via the vision cone yet.
         // Once hasSeenPlayer is true the enemy always pursues regardless of floor/range limits.
-        if (!targetPos || (!this.hasSeenPlayer && !canSeePlayer)) {
+        else if (!targetPos || (!this.hasSeenPlayer && !canSeePlayer)) {
             if (this.state !== "idle") {
                 this.state = "idle";
                 if (!this.usesAdvancedGruntAnimations) {
@@ -344,7 +353,7 @@ class GruntEnemy extends Enemy {
             this.vx = 0;
             this.performIdleBehavior();
         }
-        else if (!canSeePlayer) {
+        else if (!canSeePlayer && horizontalGap > this.attackRange) {
             if (targetReached) {
                 this.clearTargetMemory();
                 if (this.state !== "idle") {
@@ -384,28 +393,13 @@ class GruntEnemy extends Enemy {
             this.vx = dir * this.speed;
         }
         else {
-            // In attack range
-            if (this.state !== "waitingToAttack" && this.state !== "attacking") {
-                this.state = "waitingToAttack";
-                this.attackDelayTimer = this.attackDelay;
-                if (!this.usesAdvancedGruntAnimations) {
-                    this.animator.setAnimation(this.attackAnimation, this.facing, false);
-                }
+            // Enter attack mode
+            this.state = "waitingToAttack";
+            this.attackDelayTimer = this.attackDelay;
+            if (!this.usesAdvancedGruntAnimations) {
+                this.animator.setAnimation(this.attackAnimation, this.facing, false);
             }
             this.vx = 0;
-
-            // Handle attack delay and cooldown
-            if (this.state === "waitingToAttack") {
-                if (this.attackDelayTimer <= 0) {
-                    this.state = "attacking";
-                    this.performAttack();
-                }
-            }
-            else if (this.state === "attacking") {
-                if (this.attackTimer <= 0) {
-                    this.performAttack();
-                }
-            }
         }
 
         // Stop before walking off a ledge
