@@ -29,10 +29,10 @@
       "frameHeight": 35
     },
     "roll": {
-      "yStart": 30,
-      "frameCount": 6,
-      "frameWidth": 22,
-      "frameHeight": 26
+      "yStart": 127,
+      "frameCount": 9,
+      "frameWidth": 29,
+      "frameHeight": 28
     },
     "attack_slash": {
       "yStart": 58,
@@ -42,7 +42,7 @@
     },
     "airborne": {
       "yStart": 0,
-      "frameCount": 10,
+      "frameCount": 1,
       "frameWidth": 23,
       "frameHeight": 27
     }
