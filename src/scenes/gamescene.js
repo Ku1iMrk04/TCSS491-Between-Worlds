@@ -8,6 +8,7 @@ import Turret from "../actors/turret.js";
 import Door from "../actors/door.js";
 import DeathScene from "./deathscene.js";
 import LevelCompleteScene from "./levelcompletescene.js";
+import EndGameScene from "./endgamescene.js";
 import MenuScene from "./menuscene.js";
 import Camera from "../camera.js";
 import GameUI from "../ui/GameUI.js";
@@ -113,6 +114,11 @@ class GameScene extends Scene {
         this.showPauseControls = false;
 
         this.ui = new GameUI(game, `Level ${levelIndex + 1}`);
+
+        // Track game start time for completion timer
+        if (!game.gameStartTime) {
+            game.gameStartTime = Date.now();
+        }
     }
 
     enter() {
@@ -277,6 +283,15 @@ class GameScene extends Scene {
         this.levelCompleteTriggered = true;
         const totalLevels = this.game.levelMaps ? this.game.levelMaps.length : 1;
         const hasNextLevel = this.levelIndex + 1 < totalLevels;
+
+        // Check if this is level 4 (final level) - show end game scene
+        if (this.levelIndex === 3) {
+            // Calculate completion time
+            const completionTime = (Date.now() - (this.game.gameStartTime || Date.now())) / 1000;
+            this.game.sceneManager.changeScene(new EndGameScene(this.game, completionTime));
+            return;
+        }
+
         if (hasNextLevel) {
             // Directly load the next level
             this.game.sceneManager.changeScene(new GameScene(this.game, this.levelBgImage, this.levelIndex + 1));

@@ -98,6 +98,11 @@ class AttackHitbox {
             return null;
         }
 
+        // Only show slash animation if owner is in dream state
+        if (!this.owner.inDreamState) {
+            return null;
+        }
+
         return {
             spriteName: "ninja",
             animationName: "attack_slash",
