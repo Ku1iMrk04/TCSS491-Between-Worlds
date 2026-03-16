@@ -6,10 +6,10 @@ const SCIENTIST_HEALTH = 1;
 const SCIENTIST_BASE_SPEED = 30; // Used for projectile speed calculation
 const SCIENTIST_SPEED = 275; // Matches player speed
 const SCIENTIST_ATTACK_RANGE = 560; // Desired shooting distance
-const SCIENTIST_ATTACK_DELAY = 0.5; // Delay before shooting
+const SCIENTIST_ATTACK_DELAY = 0.3; // Delay before shooting
 const SCIENTIST_ATTACK_COOLDOWN_SECONDS = 1.5; // Cooldown between shots
-const SCIENTIST_PROJECTILE_SPEED_MULTIPLIER = 30; // Fast Katana-Zero-style projectiles
-const SCIENTIST_PROJECTILE_SPEED = SCIENTIST_BASE_SPEED * SCIENTIST_PROJECTILE_SPEED_MULTIPLIER; // 900 px/s
+const SCIENTIST_PROJECTILE_SPEED_MULTIPLIER = 40; // Fast Katana-Zero-style projectiles
+const SCIENTIST_PROJECTILE_SPEED = SCIENTIST_BASE_SPEED * SCIENTIST_PROJECTILE_SPEED_MULTIPLIER; // 1200 px/s
 const SCIENTIST_PROJECTILE_LIFE = null;
 const SCIENTIST_PROJECTILE_DAMAGE = 5;
 const SCIENTIST_PROJECTILE_RADIUS = 6;
@@ -304,6 +304,7 @@ class ScientistEnemy extends Enemy {
 
         const inAttackRange = horizontalGap <= this.attackRange;
         const inAttackMode  = this.state === "waitingToAttack" || this.state === "attacking";
+        const playerOverlapping = horizontalGap === 0;
 
         // --- IDLE: no target yet, or never triggered and out of range/engagement ---
         if (!targetPos || (!this.hasSeenPlayer && (!canEngage || horizontalDist > this.aggroRange))) {
@@ -318,7 +319,7 @@ class ScientistEnemy extends Enemy {
         // --- HOLD POSITION: already in attack stance ---
         // Leave attack mode if the player escapes range OR breaks line-of-sight.
         } else if (inAttackMode) {
-            if (!inAttackRange || !canSeePlayer) {
+            if (!inAttackRange || (!canSeePlayer && !playerOverlapping)) {
                 // Lost range or lost LoS - chase to close in / reacquire
                 this.state = "chase";
                 if (!this.usesAdvancedScientistAnimations) {
@@ -343,8 +344,8 @@ class ScientistEnemy extends Enemy {
                 }
             }
 
-        // --- ENTER ATTACK STANCE: in range AND has line-of-sight ---
-        } else if (inAttackRange && canSeePlayer) {
+        // --- ENTER ATTACK STANCE: in range AND has line-of-sight (or player is overlapping) ---
+        } else if (inAttackRange && (canSeePlayer || playerOverlapping)) {
             this.state = "waitingToAttack";
             this.attackDelayTimer = this.attackDelay;
             if (!this.usesAdvancedScientistAnimations) {
@@ -398,7 +399,8 @@ class ScientistEnemy extends Enemy {
     performAttack() {
         const player = this.findPlayer();
         if (!player) return;
-        if (!this.canCurrentlySeePlayer(player)) return;
+        const hGap = Math.max(0, Math.max(player.x - (this.x + this.width), this.x - (player.x + player.width)));
+        if (!this.canCurrentlySeePlayer(player) && hGap > 0) return;
 
         this.attackTimer = this.attackCooldown;
 

@@ -81,7 +81,9 @@ class CollisionManager {
     }
 
     /**
-     * Resolve solid collision by pushing entities apart
+     * Resolve solid collision by pushing entities apart.
+     * If either entity has isImmovable=true the full overlap is transferred
+     * to the movable entity instead of being split 50/50.
      */
     resolveCollision(entityA, entityB, overlap) {
         // Skip if either is a trigger (pass-through)
@@ -89,26 +91,34 @@ class CollisionManager {
             return;
         }
 
+        const aFixed = entityA.isImmovable || false;
+        const bFixed = entityB.isImmovable || false;
+        if (aFixed && bFixed) return;
+
         // Push along the axis with smallest overlap
         if (overlap.x < overlap.y) {
             // Push horizontally
-            const pushX = overlap.x / 2;
+            const full = overlap.x;
+            const pushA = aFixed ? 0 : (bFixed ? full : full / 2);
+            const pushB = bFixed ? 0 : (aFixed ? full : full / 2);
             if (entityA.x < entityB.x) {
-                entityA.x -= pushX;
-                entityB.x += pushX;
+                entityA.x -= pushA;
+                entityB.x += pushB;
             } else {
-                entityA.x += pushX;
-                entityB.x -= pushX;
+                entityA.x += pushA;
+                entityB.x -= pushB;
             }
         } else {
             // Push vertically
-            const pushY = overlap.y / 2;
+            const full = overlap.y;
+            const pushA = aFixed ? 0 : (bFixed ? full : full / 2);
+            const pushB = bFixed ? 0 : (aFixed ? full : full / 2);
             if (entityA.y < entityB.y) {
-                entityA.y -= pushY;
-                entityB.y += pushY;
+                entityA.y -= pushA;
+                entityB.y += pushB;
             } else {
-                entityA.y += pushY;
-                entityB.y -= pushY;
+                entityA.y += pushA;
+                entityB.y -= pushB;
             }
         }
     }

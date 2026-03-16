@@ -5,6 +5,7 @@ import GruntEnemy from "../actors/gruntenemy.js";
 import ScientistEnemy from "../actors/scientistenemy.js";
 import GangsterEnemy from "../actors/gangsterenemy.js";
 import Turret from "../actors/turret.js";
+import Door from "../actors/door.js";
 import DeathScene from "./deathscene.js";
 import LevelCompleteScene from "./levelcompletescene.js";
 import MenuScene from "./menuscene.js";
@@ -76,6 +77,14 @@ const LEVEL_ENEMY_SPAWNS = [
         { x: 1472, y: 816, type: "grunt" },       // floor right
         { x: 1920, y: 816, type: "turret", facing: "left" },      // first floor, far right
     ],
+];
+
+// Door spawn positions per level. Each entry is an array of { x, y, w?, h? } objects.
+const LEVEL_DOOR_SPAWNS = [
+    [], // Level 1
+    [], // Level 2
+    [], // Level 3
+    [], // Level 4
 ];
 
 // Exit portal positions per level (x, y in world pixels, center of portal).
@@ -158,6 +167,11 @@ class GameScene extends Scene {
                 enemy.animator.setDirection(spawn.facing);
             }
             this.game.addEntity(enemy);
+        }
+
+        const doorSpawns = LEVEL_DOOR_SPAWNS[this.levelIndex] || [];
+        for (const spawn of doorSpawns) {
+            this.game.addEntity(new Door(this.game, spawn.x, spawn.y, spawn.w, spawn.h));
         }
     }
 

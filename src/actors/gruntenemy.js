@@ -4,7 +4,7 @@ import AttackHitbox from "../collision/attackhitbox.js";
 
 const GRUNT_HEALTH = 1;
 const GRUNT_SPEED = 325; // Faster than the player (275 px/s)
-const GRUNT_ATTACK_DELAY = 0.3; // delay before attacking
+const GRUNT_ATTACK_DELAY = 0.2; // delay before attacking
 const GRUNT_ATTACK_COOLDOWN = 1.0; // 1 second cooldown after attack
 const GRUNT_VISION_RANGE = 420; // Same as default
 const GRUNT_PATROL_RANGE = 96;  // px each direction from spawn point
