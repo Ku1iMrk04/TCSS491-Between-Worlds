@@ -5,37 +5,37 @@
   "yLineWidth": 1,
   "animations": {
     "idle": {
-      "yStart": -1,
+      "yStart": 1,
       "frameCount": 10,
       "frameWidth": 22,
       "frameHeight": 27
     },
     "run": {
-      "yStart": 29,
+      "yStart": 30,
       "frameCount": 6,
       "frameWidth": 21,
       "frameHeight": 26
     },
     "attack": {
-      "yStart": 57,
+      "yStart": 59,
       "frameCount": 4,
       "frameWidth": 45,
       "frameHeight": 29
     },
     "die": {
-      "yStart": 90,
+      "yStart": 91,
       "frameCount": 15,
       "frameWidth": 41,
       "frameHeight": 35
     },
     "roll": {
-      "yStart": 127,
+      "yStart": 129,
       "frameCount": 9,
       "frameWidth": 29,
       "frameHeight": 28
     },
     "attack_slash": {
-      "yStart": 58,
+      "yStart": 59,
       "frameCount": 4,
       "frameWidth": 46,
       "frameHeight": 29
