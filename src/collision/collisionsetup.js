@@ -17,6 +17,7 @@ export function setupCollisions(collisionManager) {
 
     // Door collision rules
     collisionManager.addLayerRule("player", "door");
+    collisionManager.addLayerRule("player_rolling", "door");
     collisionManager.addLayerRule("player_attack", "door");
     collisionManager.addLayerRule("enemy", "door");
 
