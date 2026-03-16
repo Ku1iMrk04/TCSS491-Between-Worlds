@@ -20,6 +20,9 @@ ASSET_MANAGER.queueSprite("assets/grunt_sprite_sheet.png");
 ASSET_MANAGER.queueSprite("assets/gangsteridle_3.png");
 ASSET_MANAGER.queueSprite("assets/turret_sprite_sheet.png");
 
+// Door sprite
+ASSET_MANAGER.queueDownload("assets/door.png");
+
 // Background images (no metadata needed)
 ASSET_MANAGER.queueDownload("assets/menu_background.png");
 ASSET_MANAGER.queueDownload("assets/level_background.png");
