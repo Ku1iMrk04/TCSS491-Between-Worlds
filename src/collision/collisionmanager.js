@@ -166,6 +166,10 @@ class CollisionManager {
                         if (a.onCollision) a.onCollision(b);
                         if (b.onCollision) b.onCollision(a);
                     }
+
+                    // A handler may have nullified a's collider (e.g. entity destroyed).
+                    // Break the inner loop so we don't access a.collider.layer again.
+                    if (!a.collider) break;
                 }
             }
         }
