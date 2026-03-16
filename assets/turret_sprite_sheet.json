@@ -1,0 +1,76 @@
+{
+  "sheet": "turret_sprite_sheet.png",
+  "sheetWidth": 1216,
+  "sheetHeight": 266,
+  "animations": {
+    "base": {
+      "frameCount": 1,
+      "frameWidth": 42,
+      "frameHeight": 23,
+      "xStart": 19,
+      "yStart": 17,
+      "xStride": 42,
+      "loop": true,
+      "frameDuration": 0.1
+    },
+    "head": {
+      "frameCount": 1,
+      "frameWidth": 44,
+      "frameHeight": 14,
+      "xStart": 22,
+      "yStart": 64,
+      "xStride": 44,
+      "loop": true,
+      "frameDuration": 0.1
+    },
+    "death": {
+      "frameCount": 13,
+      "frameWidth": 137,
+      "frameHeight": 34,
+      "loop": false,
+      "frameDuration": 0.08,
+      "frames": [
+        { "x": 31, "y": 116, "w": 47, "h": 34 },
+        { "x": 118, "y": 116, "w": 47, "h": 34 },
+        { "x": 197, "y": 116, "w": 137, "h": 34 },
+        { "x": 379, "y": 116, "w": 45, "h": 34 },
+        { "x": 466, "y": 116, "w": 46, "h": 34 },
+        { "x": 553, "y": 116, "w": 47, "h": 34 },
+        { "x": 640, "y": 116, "w": 48, "h": 34 },
+        { "x": 727, "y": 116, "w": 49, "h": 34 },
+        { "x": 814, "y": 116, "w": 49, "h": 34 },
+        { "x": 901, "y": 116, "w": 53, "h": 34 },
+        { "x": 988, "y": 116, "w": 54, "h": 34 },
+        { "x": 1075, "y": 116, "w": 44, "h": 34 },
+        { "x": 1162, "y": 116, "w": 46, "h": 34 }
+      ]
+    },
+    "spark": {
+      "frameCount": 8,
+      "frameWidth": 33,
+      "frameHeight": 36,
+      "loop": false,
+      "frameDuration": 0.04,
+      "frames": [
+        { "x": 21, "y": 170, "w": 29, "h": 36 },
+        { "x": 114, "y": 170, "w": 32, "h": 36 },
+        { "x": 205, "y": 170, "w": 33, "h": 36 },
+        { "x": 294, "y": 170, "w": 14, "h": 36 },
+        { "x": 383, "y": 170, "w": 15, "h": 36 },
+        { "x": 471, "y": 170, "w": 15, "h": 36 },
+        { "x": 559, "y": 170, "w": 14, "h": 36 },
+        { "x": 650, "y": 170, "w": 1, "h": 36 }
+      ]
+    },
+    "bullet": {
+      "frameCount": 1,
+      "frameWidth": 34,
+      "frameHeight": 2,
+      "xStart": 25,
+      "yStart": 240,
+      "xStride": 34,
+      "loop": true,
+      "frameDuration": 0.1
+    }
+  }
+}

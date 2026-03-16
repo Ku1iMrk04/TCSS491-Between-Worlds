@@ -29,6 +29,9 @@ class Roll extends State {
         entity.grounded = true;
         entity.vy = 0;
 
+        // Play roll sound effect
+        if (entity.game.soundManager) entity.game.soundManager.playSfx("dodge");
+
         // Set roll animation (non-looping)
         // Will use fallback NoSpriteBudda.png until roll animation is added to zero.json
         if (entity.animator) {

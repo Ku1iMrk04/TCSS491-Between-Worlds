@@ -30,18 +30,36 @@ class Player extends Actor {
         this.name = "Player";
         this.facing = "right";  // Direction player is facing
         this.scale = 2;
-        this.width = 33 * this.scale;
-        this.height = 34 * this.scale;
+
+        // Hitbox dimensions for each form
+        this.kidWidth = 23 * this.scale;
+        this.kidHeight = 27 * this.scale;
+        this.ninjaWidth = 33 * this.scale;
+        this.ninjaHeight = 34 * this.scale;
+
+        // Start with kid dimensions (normal form)
+        this.width = this.kidWidth;
+        this.height = this.kidHeight;
         this.setCollider({ layer: "player" });
-        this.animator = new Animator("ninja", this.game.assetManager)
-        this.animator.setScale(this.scale);
+
+        // Normal state animator
+        this.normalAnimator = new Animator("kid", this.game.assetManager);
+        this.normalAnimator.setScale(this.scale);
+
+        // Dream state animator
+        this.dreamAnimator = new Animator("ninja", this.game.assetManager);
+        this.dreamAnimator.setScale(this.scale);
 
         // Adjust sprite position to align top of sprite with hitbox top
         // Ninja max height is 43px (airborne), idle is 34px, creating a 9px offset
         // We want the sprite top-aligned with hitbox, so negate the bottom-alignment
         const maxHeight = 43; // airborne animation height
         const playerHeight = 34; // idle animation height
-        this.animator.setVerticalAdjustment(-(maxHeight - playerHeight) * this.scale);
+        this.normalAnimator.setVerticalAdjustment(-(maxHeight - playerHeight) * this.scale);
+        this.dreamAnimator.setVerticalAdjustment(-(maxHeight - playerHeight) * this.scale);
+
+        // Start with normal animator active
+        this.animator = this.normalAnimator;
         this.speed = 275;
         this.currentAnimState = "idle";  // Track current animation state
         this.wasFalling = false;  // Track if player was falling (to prevent slope snapping mid-air)
@@ -87,6 +105,48 @@ class Player extends Actor {
         // Dream particle trail
         this.dreamParticles = [];
         this.dreamParticleTimer = 0;
+
+        // Death state
+        this.isDead = false;
+        this.deathAnimationComplete = false;
+    }
+
+    onDeath() {
+        // Override Actor's onDeath to play death animation instead of removing immediately
+        if (this.isDead) return;
+        this.isDead = true;
+        this.vx = 0;
+        this.vy = 0;
+
+        // If in dream state, switch back to normal form for death animation
+        if (this.inDreamState) {
+            this.inDreamState = false;
+
+            // Switch to normal animator
+            this.animator = this.normalAnimator;
+
+            // Resize hitbox back to kid dimensions
+            const widthDiff = this.width - this.kidWidth;
+            const heightDiff = this.height - this.kidHeight;
+            this.width = this.kidWidth;
+            this.height = this.kidHeight;
+            // Center the hitbox horizontally and keep feet position
+            this.x += widthDiff / 2;
+            this.y += heightDiff;
+
+            // Reset speed
+            this.speed /= this.dreamSpeedMultiplier;
+        }
+
+        // Play death animation
+        if (this.animator) {
+            this.animator.setAnimation("die", this.facing, false);
+        }
+
+        // Stop dream state music if active
+        if (this.game.soundManager) {
+            this.game.soundManager.stopMusic();
+        }
     }
 
     onCollision(other) {
@@ -95,6 +155,20 @@ class Player extends Actor {
     }
 
     update() {
+        // If dead, skip all normal update logic except animation
+        if (this.isDead) {
+            if (this.animator) {
+                this.animator.update(this.game.clockTick);
+                // Check if death animation is complete (on last frame of non-looping animation)
+                const anim = this.animator.spriteAtlas?.metadata?.animations?.[this.animator.currAnimationName];
+                if (anim && !this.animator.isLooping && this.animator.currentFrame >= anim.frameCount - 1) {
+                    this.deathAnimationComplete = true;
+                    this.removeFromWorld = true; // Trigger death scene transition
+                }
+            }
+            return;
+        }
+
         // Cooldown ticks
         const dt = this.game.clockTick || 0;
         if (this.dashStrikeCooldownTimer > 0) {
@@ -121,7 +195,24 @@ class Player extends Actor {
             if (this.dreamMeter <= 0) {
                 this.dreamMeter = 0;
                 this.inDreamState = false;
+
+                // SWAP BACK TO NORMAL ANIMATOR
+                const currentAnimation = this.animator.currAnimationName;
+                const currentDirection = this.animator.direction;
+                this.animator = this.normalAnimator;
+                this.animator.setAnimation(currentAnimation, currentDirection, true);
+
+                // RESIZE HITBOX BACK TO KID DIMENSIONS
+                const widthDiff = this.width - this.kidWidth;
+                const heightDiff = this.height - this.kidHeight;
+                this.width = this.kidWidth;
+                this.height = this.kidHeight;
+                // Center the hitbox horizontally and keep feet position
+                this.x += widthDiff / 2;
+                this.y += heightDiff;
+
                 this.speed /= this.dreamSpeedMultiplier;
+                if (this.game.soundManager) this.game.soundManager.playMusic("gameplay");
             }
         } else {
             this.dreamMeter = Math.min(this.dreamMeterMax, this.dreamMeter + this.dreamMeterRechargeRate * dt);
@@ -144,8 +235,28 @@ class Player extends Actor {
         // Dream state activation (E key)
         if (this.game.eKey && !this.inDreamState && this.dreamMeter >= this.dreamMeterMax) {
             this.inDreamState = true;
+
+            // SWAP TO DREAM ANIMATOR
+            const currentAnimation = this.animator.currAnimationName;
+            const currentDirection = this.animator.direction;
+            this.animator = this.dreamAnimator;
+            this.animator.setAnimation(currentAnimation, currentDirection, true);
+
+            // RESIZE HITBOX TO NINJA DIMENSIONS
+            const widthDiff = this.ninjaWidth - this.width;
+            const heightDiff = this.ninjaHeight - this.height;
+            this.width = this.ninjaWidth;
+            this.height = this.ninjaHeight;
+            // Center the hitbox horizontally and keep feet position
+            this.x -= widthDiff / 2;
+            this.y -= heightDiff;
+
             this.speed *= this.dreamSpeedMultiplier;
             this.game.eKey = false;
+            if (this.game.soundManager) {
+                this.game.soundManager.playSfx("dreamActivate");
+                this.game.soundManager.playMusic("dream");
+            }
         }
 
         // Track if player was grounded last frame
@@ -171,17 +282,26 @@ class Player extends Actor {
 
             // Attack input with left click (can attack mid-air)
             if (this.game.click && this.currentState !== this.states["attack"] && this.currentState !== this.states["roll"]) {
+                // Capture attack direction RIGHT NOW at click time for maximum responsiveness
+                let atkDx = 0, atkDy = 0;
+                if (this.game.left) atkDx = -1;
+                else if (this.game.right) atkDx = 1;
+                if (this.game.up) atkDy = -1;
+                else if (this.game.down) atkDy = 1;
+                if (atkDx === 0 && atkDy === 0) {
+                    if (!this.grounded && this.vy > 0) {
+                        atkDy = 1;
+                    } else {
+                        atkDx = this.facing === "left" ? -1 : 1;
+                    }
+                }
+                this.pendingAttackDirX = atkDx;
+                this.pendingAttackDirY = atkDy;
+
                 if (this.inDreamState && this.dreamSlashCooldownTimer <= 0) {
                     // Compute dash direction from WASD input (same as normal attack)
                     const maxDist = this.states["dreamslashaim"].maxDashDistance;
-                    let dx = 0, dy = 0;
-                    if (this.game.left) dx = -1;
-                    else if (this.game.right) dx = 1;
-                    if (this.game.up) dy = -1;
-                    else if (this.game.down) dy = 1;
-                    if (dx === 0 && dy === 0) {
-                        dx = this.facing === "left" ? -1 : 1;
-                    }
+                    let dx = atkDx, dy = atkDy;
                     if (dx !== 0 && dy !== 0) {
                         dx /= Math.SQRT2;
                         dy /= Math.SQRT2;
@@ -436,7 +556,8 @@ class Player extends Actor {
         const attackState = this.states["attack"];
         const isAttacking = this.currentState === attackState;
 
-        if (isAttacking) {
+        // Only show slash visual effect when in dream state
+        if (isAttacking && this.inDreamState) {
             const dx = attackState.attackDirX;
             const dy = attackState.attackDirY;
             const cx = this.x + this.width / 2;

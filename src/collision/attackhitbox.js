@@ -23,16 +23,17 @@ class AttackHitbox {
         this.offsetY = options.offset?.y || 0;
 
         // Set up collider first so we can use its size
+        const layer = options.layer || "player_attack";
         this.collider = new Collider({
             size: options.size || { width: 32, height: 32 },
-            layer: options.layer || "player_attack",
+            layer,
             isTrigger: true,  // Pass-through, doesn't push entities
             angle: options.attackDir ? Math.atan2(options.attackDir.y, options.attackDir.x) : 0
         });
 
-        // Create slash animator for all attacks.
+        // Create slash animator only if owner is in dream state
         // Directional attacks always use "right" facing so canvas rotation handles the direction.
-        if (owner.animator && owner.game.assetManager) {
+        if (owner.inDreamState && owner.animator && owner.game.assetManager) {
             this.animator = new Animator("ninja", owner.game.assetManager);
             this.animator.setScale((owner.scale || 3) * 0.7);
             const slashFacing = this.attackDir ? "right" : owner.facing;
@@ -44,6 +45,29 @@ class AttackHitbox {
             const maxHeight = this.animator.maxAnimationHeight * this.animator.scale;
             const slashHeight = 27 * this.animator.scale;
             this.animator.setVerticalAdjustment(-(maxHeight - slashHeight));
+        } else {
+            this.animator = null;
+        }
+        this.visualEffect = this.resolveVisualEffect(options.visualEffect, layer);
+
+        // Optional attack visual effect.
+        if (this.visualEffect && owner.animator && owner.game.assetManager) {
+            this.animator = new Animator(this.visualEffect.spriteName, owner.game.assetManager);
+            this.animator.setScale(this.visualEffect.scale ?? (owner.scale || 3) * 0.7);
+            const effectFacing = this.attackDir
+                ? (this.visualEffect.attackDirFacing ?? "right")
+                : owner.facing;
+            this.animator.setAnimation(
+                this.visualEffect.animationName,
+                effectFacing,
+                this.visualEffect.loop ?? false
+            );
+
+            if (this.visualEffect.disableBottomAlignment) {
+                const maxHeight = this.animator.maxAnimationHeight * this.animator.scale;
+                const effectHeight = this.animator.getCurrentFrameTransform().h * this.animator.scale;
+                this.animator.setVerticalAdjustment(-(maxHeight - effectHeight));
+            }
         }
 
         // Current position
@@ -55,10 +79,81 @@ class AttackHitbox {
         this.hitEntities = new Set();
 
         // Lifetime timer (seconds)
-        this.life = 0.4;
+        this.life = options.life ?? this.visualEffect?.life ?? 0.4;
 
         this.removeFromWorld = false;
         this.name = "AttackHitbox";
+    }
+
+    resolveVisualEffect(visualEffect, layer) {
+        if (visualEffect === false) {
+            return null;
+        }
+
+        if (visualEffect) {
+            return visualEffect;
+        }
+
+        if (layer !== "player_attack") {
+            return null;
+        }
+
+        // Only show slash animation if owner is in dream state
+        if (!this.owner.inDreamState) {
+            return null;
+        }
+
+        return {
+            spriteName: "ninja",
+            animationName: "attack_slash",
+            scale: (this.owner.scale || 3) * 0.7,
+            loop: false,
+            disableBottomAlignment: true,
+            positionMode: this.attackDir ? "attackDir" : "legacyHorizontal",
+            baseWidth: 124,
+            baseHeight: 27
+        };
+    }
+
+    getVisualEffectSize() {
+        if (!this.animator) {
+            return { width: 0, height: 0 };
+        }
+
+        const transform = this.animator.getCurrentFrameTransform();
+        return {
+            width: transform.w * this.animator.scale,
+            height: transform.h * this.animator.scale
+        };
+    }
+
+    getVisualEffectDrawPosition(effectWidth, effectHeight) {
+        const effect = this.visualEffect || {};
+        const facingSign = this.owner.facing === "left" ? -1 : 1;
+        const offsetX = (effect.offsetX ?? 0) * facingSign;
+        const offsetY = effect.offsetY ?? 0;
+
+        if (effect.positionMode === "frontCenter") {
+            const forwardOffset = (effect.forwardOffset ?? 0) * facingSign;
+            return {
+                x: this.owner.x + (this.owner.width / 2) + forwardOffset + offsetX - (effectWidth / 2),
+                y: this.owner.y + (this.owner.height / 2) - (effectHeight / 2) + offsetY
+            };
+        }
+
+        if (effect.positionMode === "bottomCenter") {
+            return {
+                x: this.owner.x + (this.owner.width / 2) + offsetX - (effectWidth / 2),
+                y: this.owner.y + this.owner.height - effectHeight + offsetY
+            };
+        }
+
+        return {
+            x: this.owner.facing === "left"
+                ? this.owner.x + this.owner.width - effectWidth + offsetX
+                : this.owner.x + offsetX,
+            y: this.owner.y + offsetY
+        };
     }
 
     /**
@@ -73,7 +168,9 @@ class AttackHitbox {
             // Center hitbox at the slash visual center (same math as draw offsetX)
             const cx = owner.x + owner.width / 2;
             const cy = owner.y + owner.height / 2;
-            const slashW = this.animator ? 124 * this.animator.scale : this.collider.size.width;
+            const slashW = this.visualEffect?.baseWidth && this.animator
+                ? this.visualEffect.baseWidth * this.animator.scale
+                : this.collider.size.width;
             const slashCenter = -owner.width * 0.75 + slashW / 2;
             return {
                 x: cx + this.attackDir.x * slashCenter - hw,
@@ -130,9 +227,7 @@ class AttackHitbox {
     draw(ctx, game) {
         // Draw the attack slash animation
         if (this.animator) {
-            // Slash sprite dimensions: 124x27 at slash scale
-            const slashWidth = 124 * this.animator.scale;
-            const slashHeight = 27 * this.animator.scale;
+            const { width: slashWidth, height: slashHeight } = this.getVisualEffectSize();
 
             if (this.attackDir) {
                 // Use player center as the rotation point (same as debug visualization)
@@ -153,18 +248,15 @@ class AttackHitbox {
                 }
 
                 // Position sprite at distance from player center, centered vertically
-                // Positive offsetX pushes slash further from body (player half-width = 33px)
-                const offsetX = -this.owner.width * 0.75;
-                const offsetY = -slashHeight / 2;  // Center vertically
+                const offsetX = this.visualEffect?.offsetX ?? -this.owner.width * 0.75;
+                const offsetY = this.visualEffect?.offsetY ?? -(slashHeight / 2);
 
                 this.animator.draw(ctx, offsetX, offsetY);
                 ctx.restore();
             } else {
-                // Legacy left/right: align sprite's near edge with player's near edge
-                const slashY = this.owner.y;
-                const slashX = this.owner.facing === "left"
-                    ? this.owner.x + this.owner.width - slashWidth
-                    : this.owner.x;
+                const drawPosition = this.getVisualEffectDrawPosition(slashWidth, slashHeight);
+                const slashX = drawPosition.x;
+                const slashY = drawPosition.y;
                 this.animator.draw(ctx, slashX, slashY);
             }
         }
@@ -191,6 +283,54 @@ class AttackHitbox {
                 3, 0, Math.PI * 2
             );
             ctx.fill();
+
+            // Draw slash direction and length indicator
+            if (this.attackDir) {
+                const cx = this.owner.x + this.owner.width / 2;
+                const cy = this.owner.y + this.owner.height / 2;
+                const slashLength = this.animator ? 124 * this.animator.scale : 100;
+
+                // Draw line from player center in attack direction
+                ctx.strokeStyle = "#00ff00";  // Green for slash direction
+                ctx.lineWidth = 3;
+                ctx.globalAlpha = 0.8;
+                ctx.beginPath();
+                ctx.moveTo(cx, cy);
+                ctx.lineTo(
+                    cx + this.attackDir.x * slashLength,
+                    cy + this.attackDir.y * slashLength
+                );
+                ctx.stroke();
+
+                // Draw endpoint circle
+                ctx.fillStyle = "#00ff00";
+                ctx.beginPath();
+                ctx.arc(
+                    cx + this.attackDir.x * slashLength,
+                    cy + this.attackDir.y * slashLength,
+                    5, 0, Math.PI * 2
+                );
+                ctx.fill();
+
+                // Draw slash width indicator
+                ctx.strokeStyle = "#ffff00";  // Yellow for slash width
+                ctx.lineWidth = 1;
+                ctx.globalAlpha = 0.5;
+                const slashWidth = this.animator ? 27 * this.animator.scale : 30;
+                const perpX = -this.attackDir.y;
+                const perpY = this.attackDir.x;
+
+                ctx.beginPath();
+                ctx.moveTo(
+                    cx + perpX * slashWidth / 2,
+                    cy + perpY * slashWidth / 2
+                );
+                ctx.lineTo(
+                    cx - perpX * slashWidth / 2,
+                    cy - perpY * slashWidth / 2
+                );
+                ctx.stroke();
+            }
 
             ctx.restore();
         }

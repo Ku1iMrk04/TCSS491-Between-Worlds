@@ -4,7 +4,7 @@ import { setupCollisions } from "./src/collision/collisionsetup.js";
 import SceneManager from "./src/scenes/scenemanager.js";
 import MenuScene from "./src/scenes/menuscene.js";
 import MapLoader from "./src/map/maploader.js";
-import MusicManager from "./src/audio/musicmanager.js";
+import SoundManager from "./src/audio/musicmanager.js";
 
 const gameEngine = new GameEngine({ debugging: false });
 const mapLoader = new MapLoader();
@@ -12,10 +12,13 @@ const mapLoader = new MapLoader();
 const ASSET_MANAGER = new AssetManager();
 // Sprite sheets with animations (will load .json metadata)
 ASSET_MANAGER.queueSprite("assets/ninja.png");
+ASSET_MANAGER.queueSprite("assets/kid.png");  // Dream state sprite
 ASSET_MANAGER.queueSprite("assets/zero.png");
 ASSET_MANAGER.queueSprite("assets/enemy_scientist.png");
-ASSET_MANAGER.queueSprite("assets/grunt_idle.png");
+ASSET_MANAGER.queueSprite("assets/scientist_sprite_sheet.png");
+ASSET_MANAGER.queueSprite("assets/grunt_sprite_sheet.png");
 ASSET_MANAGER.queueSprite("assets/gangsteridle_3.png");
+ASSET_MANAGER.queueSprite("assets/turret_sprite_sheet.png");
 
 // Background images (no metadata needed)
 ASSET_MANAGER.queueDownload("assets/menu_background.png");
@@ -56,12 +59,31 @@ ASSET_MANAGER.downloadAll(async () => {
 
 	setupCollisions(gameEngine.collisionManager);
 
-	// Music setup — register tracks here, add more as needed
-	const musicManager = new MusicManager();
-	musicManager.register("gameplay", "viacheslavstarostin-game-gaming-video-game-music-471936.mp3");
-	// musicManager.register("menu",     "assets/audio/menu.mp3");
-	// musicManager.register("boss",     "assets/audio/boss.mp3");
-	gameEngine.musicManager = musicManager;
+	// --- Centralized sound setup ---
+	// Register ALL game sounds here. This is the single place to add/change audio.
+	const soundManager = new SoundManager();
+
+	// Music tracks
+	soundManager.registerMusic("gameplay", "assets/sounds/backgroundMusic.mp3");
+	soundManager.registerMusic("dream",    "assets/sounds/dreamBackgroundMusic.mp3");
+	soundManager.registerMusic("menu",     "assets/sounds/menuMusic.mp3");
+
+	// Player SFX
+	soundManager.registerSfx("jump",          "assets/sounds/jump.wav",           0.4);
+	soundManager.registerSfx("softLanding",    "assets/sounds/softLanding.mp3",    0.4);
+	soundManager.registerSfx("hardLanding",    "assets/sounds/hardLanding.mp3",    0.4);
+	soundManager.registerSfx("swordMiss",      "assets/sounds/swordMiss.wav",      0.4);
+	soundManager.registerSfx("swordHit",       "assets/sounds/swordHit.wav",       0.1);
+	soundManager.registerSfx("dodge",          "assets/sounds/dodge.mp3",          0.4);
+	soundManager.registerSfx("dreamActivate",  "assets/sounds/dreamActivate.mp3",  0.4);
+	soundManager.registerSfx("dreamDashMiss",  "assets/sounds/dreamDashMiss.mp3",  0.4);
+	soundManager.registerSfx("dreamDashHit",   "assets/sounds/dreamDashHit.mp3",   0.4);
+
+	// Enemy SFX
+	soundManager.registerSfx("gruntTriggered", "assets/sounds/gruntTriggered.mp3", 0.1);
+	soundManager.registerSfx("laserGun",       "assets/sounds/laserGun.mp3",       0.2);
+
+	gameEngine.soundManager = soundManager;
 
 	gameEngine.sceneManager = new SceneManager(gameEngine);
     const menuBg = ASSET_MANAGER.getAsset("assets/menu_background.png");

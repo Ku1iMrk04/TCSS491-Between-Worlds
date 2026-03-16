@@ -117,7 +117,7 @@ class Enemy extends Actor {
     }
 
     /**
-     * Check whether a wall blocks the direct line between enemy and player.
+     * Check whether a wall or closed door blocks the direct line between enemy and player.
      */
     canSeePlayerClearly(player) {
         if (!player) return false;
@@ -137,6 +137,7 @@ class Enemy extends Actor {
             return true;
         }
 
+        // Check tile walls
         const sampleSpacing = Math.max(4, Math.min(tileMap.tileWidth, tileMap.tileHeight) / 2);
         const sampleCount = Math.ceil(distance / sampleSpacing);
 
@@ -155,6 +156,51 @@ class Enemy extends Actor {
             }
         }
 
+        // Check closed doors (line-segment vs AABB)
+        const entities = this.game.entities;
+        for (let i = 0; i < entities.length; i++) {
+            const e = entities[i];
+            if (e.name !== "Door" || e.removeFromWorld) continue;
+            if (this._segmentIntersectsAABB(startX, startY, endX, endY,
+                    e.x, e.y, e.x + e.width, e.y + e.height)) {
+                return false;
+            }
+        }
+
+        return true;
+    }
+
+    /**
+     * Slab-method segment vs AABB intersection test.
+     * Returns true if the segment (x1,y1)→(x2,y2) passes through the rectangle.
+     */
+    _segmentIntersectsAABB(x1, y1, x2, y2, minX, minY, maxX, maxY) {
+        const dx = x2 - x1;
+        const dy = y2 - y1;
+        let tMin = 0, tMax = 1;
+
+        if (Math.abs(dx) < 1e-9) {
+            if (x1 < minX || x1 > maxX) return false;
+        } else {
+            let t1 = (minX - x1) / dx;
+            let t2 = (maxX - x1) / dx;
+            if (t1 > t2) { const tmp = t1; t1 = t2; t2 = tmp; }
+            tMin = Math.max(tMin, t1);
+            tMax = Math.min(tMax, t2);
+            if (tMin > tMax) return false;
+        }
+
+        if (Math.abs(dy) < 1e-9) {
+            if (y1 < minY || y1 > maxY) return false;
+        } else {
+            let t1 = (minY - y1) / dy;
+            let t2 = (maxY - y1) / dy;
+            if (t1 > t2) { const tmp = t1; t1 = t2; t2 = tmp; }
+            tMin = Math.max(tMin, t1);
+            tMax = Math.min(tMax, t2);
+            if (tMin > tMax) return false;
+        }
+
         return true;
     }
 
@@ -164,7 +210,7 @@ class Enemy extends Actor {
 
     clearTargetMemory() {
         this.lastSeenPlayerPos = null;
-        this.hasSeenPlayer = false;
+        // Keep hasSeenPlayer = true so the enemy stays agro after spotting the player
     }
 
     hasReachedTargetPosition(targetPos) {
@@ -392,7 +438,7 @@ class Enemy extends Actor {
             targetReached
         } = this.getTargetContext(player);
 
-        if (targetPos) {
+        if (targetPos && this.state !== "waitingToAttack" && this.state !== "attacking") {
             var faced = this.facing;
             this.facing = centerDx < 0 ? "left" : "right";
             if (this.facing !== faced) {
@@ -410,7 +456,8 @@ class Enemy extends Actor {
             this.vx = 0;
             this.performIdleBehavior();
         }
-        else if (!canSeePlayer) {
+        else if (!canSeePlayer && horizontalGap > this.attackRange &&
+                 this.state !== "waitingToAttack" && this.state !== "attacking") {
             if (targetReached) {
                 this.clearTargetMemory();
                 if (this.state !== "idle") {
@@ -430,12 +477,14 @@ class Enemy extends Actor {
                 this.vx = dir * this.speed;
             }
         }
-        else if (horizontalGap > this.attackRange) {
+        else if (horizontalGap > this.attackRange &&
+                 this.state !== "waitingToAttack" && this.state !== "attacking") {
             // Chase towards target position (either player or last seen position)
             if (this.state !== "chase") {
                 this.state = "chase";
                 this.alertTimer = 0.7;
                 this.animator.setAnimation(this.chaseAnimation, this.facing, true);
+                if (this.game.soundManager) this.game.soundManager.playSfx("gruntTriggered");
             }
             
             let dir = 0;
@@ -461,7 +510,9 @@ class Enemy extends Actor {
             }
             else if (this.state === "attacking") {
                 if (this.attackTimer <= 0) {
-                    this.performAttack();
+                    // Cooldown expired — go back to chasing so the cycle restarts
+                    this.state = "chase";
+                    this.animator.setAnimation(this.chaseAnimation, this.facing, true);
                 }
             }
         }
@@ -634,13 +685,21 @@ class Enemy extends Actor {
         return true;
     }
 
-    // Subclasses can override this to add custom idle behavior (e.g. patrolling).
+    // Subclasses can override this to add custom idle behavior.
     // Called every frame while the enemy is in the idle state.
     // vx is already 0 when this runs; override to set it to something else.
     performIdleBehavior() {}
 
+    getAnimatorDrawPosition() {
+        return {
+            x: this.x,
+            y: this.y
+        };
+    }
+
     draw(ctx, game) {
-        this.animator.draw(ctx, this.x, this.y);
+        const renderPosition = this.getAnimatorDrawPosition();
+        this.animator.draw(ctx, renderPosition.x, renderPosition.y);
 
         // Debug: draw vision cone
         if (game && game.showHitboxes) {

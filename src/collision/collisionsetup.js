@@ -9,25 +9,28 @@
  */
 export function setupCollisions(collisionManager) {
     // Define which layers can collide with each other
-    collisionManager.addLayerRule("player", "enemy");
+
     collisionManager.addLayerRule("player_attack", "enemy");
     collisionManager.addLayerRule("player_attack", "enemy_projectile");
     collisionManager.addLayerRule("enemy_attack", "player");
     collisionManager.addLayerRule("enemy_projectile", "player");
 
-    // Player touching enemy = player takes damage
-    collisionManager.onCollision("player", "enemy", (player, enemy, overlap) => {
-        const touchDamage = enemy.contactDamage ?? enemy.damage ?? 10;
-        if (touchDamage > 0 && player.takeDamage) {
-            player.takeDamage(touchDamage);
-        }
-    });
+    // Door collision rules
+    collisionManager.addLayerRule("player", "door");
+    collisionManager.addLayerRule("player_attack", "door");
+    collisionManager.addLayerRule("enemy", "door");
+
 
     // Player attack hitting enemy = enemy takes damage + knockback
     collisionManager.onCollision("player_attack", "enemy", (hitbox, enemy, overlap) => {
         // Only damage if not already hit by this attack
         if (!hitbox.hasHit(enemy)) {
             hitbox.markHit(enemy);
+
+            // Play hit sound effect (dream or normal)
+            if (hitbox.owner.game.soundManager) {
+                hitbox.owner.game.soundManager.playSfx(hitbox.owner.inDreamState ? "dreamDashHit" : "swordHit");
+            }
 
             if (enemy.takeDamage) {
                 enemy.takeDamage(hitbox.damage);
@@ -80,6 +83,17 @@ export function setupCollisions(collisionManager) {
         //hitbox.removeFromWorld = true;
     }
 });
+
+    // Player attack hitting door = deal one hit of damage
+    collisionManager.onCollision("player_attack", "door", (hitbox, door) => {
+        if (!hitbox.hasHit(door)) {
+            hitbox.markHit(door);
+            door.takeDamage(1);
+        }
+    });
+
+    // Enemies are physically blocked by doors (resolveCollision handles the push-back).
+    // No extra handler needed.
 
     // Enemy projectile hitting player
     collisionManager.onCollision("enemy_projectile", "player", (projectile, player, overlap) => {

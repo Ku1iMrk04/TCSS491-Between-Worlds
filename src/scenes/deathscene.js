@@ -3,10 +3,11 @@ import GameScene from "./gamescene.js";
 import MenuScene from "./menuscene.js";
 
 class DeathScene extends Scene {
-    constructor(game, levelBgImage, levelIndex = 0) {
+    constructor(game, levelBgImage, levelIndex = 0, frozenFrame = null) {
         super(game);
         this.levelBgImage = levelBgImage;
         this.levelIndex = levelIndex;
+        this.frozenFrame = frozenFrame;
         this.options = ["Retry", "Main Menu"];
         this.selectedIndex = 0;
         this.buttonRects = [];
@@ -89,8 +90,22 @@ class DeathScene extends Scene {
         const cx = w / 2;
 
         // --- Background ---
-        ctx.fillStyle = "#060004";
-        ctx.fillRect(0, 0, w, h);
+        if (this.frozenFrame) {
+            ctx.save();
+            ctx.filter = "brightness(0.4) saturate(0.65)";
+            ctx.drawImage(this.frozenFrame, 0, 0, w, h);
+            ctx.restore();
+
+            const fog = ctx.createLinearGradient(0, 0, 0, h);
+            fog.addColorStop(0, "rgba(8, 0, 6, 0.5)");
+            fog.addColorStop(0.5, "rgba(12, 0, 8, 0.35)");
+            fog.addColorStop(1, "rgba(8, 0, 6, 0.6)");
+            ctx.fillStyle = fog;
+            ctx.fillRect(0, 0, w, h);
+        } else {
+            ctx.fillStyle = "#060004";
+            ctx.fillRect(0, 0, w, h);
+        }
 
         // Red radial vignette
         const vig = ctx.createRadialGradient(cx, h * 0.45, h * 0.1, cx, h * 0.45, h * 0.85);
