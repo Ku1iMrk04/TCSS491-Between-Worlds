@@ -48,6 +48,9 @@ class DreamSlash extends State {
         // Deduct dream meter cost
         entity.dreamMeter = Math.max(0, entity.dreamMeter - entity.dreamBlinkCost);
 
+        // Play dream dash sound
+        if (entity.game.soundManager) entity.game.soundManager.playSfx("dreamDashMiss");
+
         // Reuse roll animation for the blink
         if (entity.animator) {
             entity.animator.setAnimation("roll", entity.facing, false);
@@ -103,6 +106,7 @@ class DreamSlash extends State {
         if (entity.dreamMeter <= 0 && entity.inDreamState) {
             entity.inDreamState = false;
             entity.speed /= entity.dreamSpeedMultiplier;
+            if (entity.game.soundManager) entity.game.soundManager.playMusic("gameplay");
         }
     }
 }

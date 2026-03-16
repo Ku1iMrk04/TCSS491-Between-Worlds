@@ -27,6 +27,11 @@ export function setupCollisions(collisionManager) {
         if (!hitbox.hasHit(enemy)) {
             hitbox.markHit(enemy);
 
+            // Play hit sound effect (dream or normal)
+            if (hitbox.owner.game.soundManager) {
+                hitbox.owner.game.soundManager.playSfx(hitbox.owner.inDreamState ? "dreamDashHit" : "swordHit");
+            }
+
             if (enemy.takeDamage) {
                 enemy.takeDamage(hitbox.damage);
             }

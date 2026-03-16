@@ -404,6 +404,8 @@ class ScientistEnemy extends Enemy {
 
         this.attackTimer = this.attackCooldown;
 
+        if (this.game.soundManager) this.game.soundManager.playSfx("laserGun");
+
         const spawnX = this.facing === "left"
             ? this.x + SCIENTIST_PROJECTILE_SPAWN_X_INSET
             : this.x + this.width - SCIENTIST_PROJECTILE_SPAWN_X_INSET;

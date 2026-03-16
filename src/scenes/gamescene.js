@@ -124,8 +124,8 @@ class GameScene extends Scene {
         this.showPauseControls = false;
         this.ui.startLevel();
 
-        if (this.game.musicManager) {
-            this.game.musicManager.play("gameplay");
+        if (this.game.soundManager) {
+            this.game.soundManager.playMusic("gameplay");
         }
 
         // Load the map for this level
@@ -176,8 +176,8 @@ class GameScene extends Scene {
     }
 
     exit() {
-        if (this.game.musicManager) {
-            this.game.musicManager.stop();
+        if (this.game.soundManager) {
+            this.game.soundManager.stopMusic();
         }
     }
 
@@ -197,6 +197,14 @@ class GameScene extends Scene {
 
     onClick(x, y) {
         const pauseButtonRect = this.ui.getPauseButtonRect();
+        const muteButtonRect  = this.ui.getMuteButtonRect();
+
+        // Mute button works whether paused or not
+        if (muteButtonRect && this.isPointInsideRect(x, y, muteButtonRect)) {
+            if (this.game.soundManager) this.game.soundManager.toggleMute();
+            this.game.click = null;
+            return;
+        }
 
         if (this.isPaused) {
             this.game.click = null;
@@ -299,22 +307,19 @@ class GameScene extends Scene {
             this.game.camera.applyTransform(ctx);
         }
 
-        // Dream state background tint (world space)
-        if (this.player && this.player.inDreamState) {
-            ctx.save();
-            ctx.fillStyle = "rgba(100, 0, 150, 0.15)";
-            const cam = this.game.camera;
-            ctx.fillRect(cam.x, cam.y, cam.viewportWidth, cam.viewportHeight);
-            ctx.restore();
-        }
-
         if (this.game.tileMap) {
-            this.game.tileMap.drawBackground(ctx);
-            this.game.tileMap.drawForeground(ctx);
+            // Dream state: show collision shapes in white on black background
+            if (this.player && this.player.inDreamState) {
+                this.game.tileMap.drawCollisionView(ctx);
+            } else {
+                // Normal rendering
+                this.game.tileMap.drawBackground(ctx);
+                this.game.tileMap.drawForeground(ctx);
 
-            // DEBUG: Draw collision hitboxes (only when debugging is enabled)
-            if (this.game.options?.debugging) {
-                this.game.tileMap.drawDebug(ctx);
+                // DEBUG: Draw collision hitboxes (only when debugging is enabled)
+                if (this.game.options?.debugging) {
+                    this.game.tileMap.drawDebug(ctx);
+                }
             }
         }
 

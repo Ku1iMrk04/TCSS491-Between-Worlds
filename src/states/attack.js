@@ -5,9 +5,9 @@ class Attack extends State {
     constructor() {
         super();
         this.hitbox = null;
-        this.attackDuration = 0.3;  // How long the attack lasts (seconds)
+        this.attackDuration = 0.22; // How long the attack lasts (seconds)
         this.attackTimer = 0;
-        this.dashSpeed = 800;   // Peak lunge speed at start of attack
+        this.dashSpeed = 380;   // Peak lunge speed at start of attack
         this.lungeDuration = 0.15;  // How long the lunge deceleration lasts
         this.attackDirX = 1;
         this.attackDirY = 0;
@@ -19,16 +19,24 @@ class Attack extends State {
         const entity = this.myEntity;
         const game = entity.game;
 
-        // Compute attack direction from current input (8-directional)
-        let dx = 0, dy = 0;
-        if (game.left) dx = -1;
-        else if (game.right) dx = 1;
-        if (game.up) dy = -1;
-        else if (game.down) dy = 1;
-
-        // Default to facing direction if no directional input
-        if (dx === 0 && dy === 0) {
-            dx = entity.facing === "left" ? -1 : 1;
+        // Use direction captured at click-time for zero-lag responsiveness.
+        // Falls back to current input if not pre-captured.
+        let dx, dy;
+        if (entity.pendingAttackDirX !== undefined) {
+            dx = entity.pendingAttackDirX;
+            dy = entity.pendingAttackDirY;
+            entity.pendingAttackDirX = undefined;
+            entity.pendingAttackDirY = undefined;
+        } else {
+            dx = 0; dy = 0;
+            if (game.left) dx = -1;
+            else if (game.right) dx = 1;
+            if (game.up) dy = -1;
+            else if (game.down) dy = 1;
+            if (dx === 0 && dy === 0) {
+                if (!entity.grounded && entity.vy > 0) dy = 1;
+                else dx = entity.facing === "left" ? -1 : 1;
+            }
         }
 
         // Normalize diagonal so speed is consistent
@@ -44,6 +52,9 @@ class Attack extends State {
         // Update facing based on horizontal component
         if (dx < 0) entity.facing = "left";
         else if (dx > 0) entity.facing = "right";
+
+        // Play sword swing sound effect
+        if (game.soundManager) game.soundManager.playSfx("swordMiss");
 
         // Set attack animation at faster speed
         if (entity.animator) {
@@ -91,7 +102,8 @@ class Attack extends State {
             // Smoothly decelerate from dashSpeed to 0 over the lunge window
             const speed = this.dashSpeed * (1 - lungeProgress);
             entity.vx = this.attackDirX * speed;
-            entity.vy = this.attackDirY * speed;
+            // Don't lunge downward into the ground
+            entity.vy = (this.attackDirY > 0 && entity.grounded) ? 0 : this.attackDirY * speed;
         } else {
             // Lunge finished — restore normal movement input
             const previousFacing = entity.facing;

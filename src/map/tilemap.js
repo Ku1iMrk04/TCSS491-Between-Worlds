@@ -630,6 +630,76 @@ class TileMap {
     drawForeground(ctx) {
         this.drawLayer(ctx, "Foreground");
     }
+
+    /**
+     * Draw collision view - shows collision shapes in white on black background
+     * Used for dream state visualization
+     */
+    drawCollisionView(ctx) {
+        ctx.save();
+
+        // Fill entire map with black
+        ctx.fillStyle = "#000000";
+        ctx.fillRect(0, 0, this.width * this.tileWidth, this.height * this.tileHeight);
+
+        // Draw collision tiles in white
+        ctx.fillStyle = "#ffffff";
+
+        const foreground = this.layers.Foreground;
+        if (!foreground) {
+            ctx.restore();
+            return;
+        }
+
+        for (let y = 0; y < this.height; y++) {
+            for (let x = 0; x < this.width; x++) {
+                const gid = foreground[y][x];
+                if (gid === 0) continue; // No tile = no collision
+
+                // Check if this tile has custom collision shapes
+                const shapes = this.getCollisionShapes(gid);
+                const tileWorldX = x * this.tileWidth;
+                const tileWorldY = y * this.tileHeight;
+
+                if (shapes && shapes.length > 0) {
+                    // Draw custom collision shapes
+                    for (const shape of shapes) {
+                        if (shape.type === 'polygon') {
+                            // Draw polygon collision shape
+                            ctx.beginPath();
+                            const points = shape.points;
+                            if (points.length > 0) {
+                                ctx.moveTo(tileWorldX + points[0].x, tileWorldY + points[0].y);
+                                for (let i = 1; i < points.length; i++) {
+                                    ctx.lineTo(tileWorldX + points[i].x, tileWorldY + points[i].y);
+                                }
+                                ctx.closePath();
+                                ctx.fill();
+                            }
+                        } else if (shape.type === 'rect') {
+                            // Draw rectangle collision shape
+                            ctx.fillRect(
+                                tileWorldX + shape.x,
+                                tileWorldY + shape.y,
+                                shape.width,
+                                shape.height
+                            );
+                        }
+                    }
+                } else {
+                    // No custom collision shape = entire tile is solid
+                    ctx.fillRect(
+                        tileWorldX,
+                        tileWorldY,
+                        this.tileWidth,
+                        this.tileHeight
+                    );
+                }
+            }
+        }
+
+        ctx.restore();
+    }
 }
 
 export default TileMap;

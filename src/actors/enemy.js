@@ -484,6 +484,7 @@ class Enemy extends Actor {
                 this.state = "chase";
                 this.alertTimer = 0.7;
                 this.animator.setAnimation(this.chaseAnimation, this.facing, true);
+                if (this.game.soundManager) this.game.soundManager.playSfx("gruntTriggered");
             }
             
             let dir = 0;

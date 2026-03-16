@@ -49,6 +49,7 @@ class Fall extends State {
         // Reset vertical velocity when landing
         if (this.myEntity.grounded) {
             this.myEntity.vy = 0;
+            if (this.myEntity.game.soundManager) this.myEntity.game.soundManager.playSfx("softLanding");
         }
     }
 }
