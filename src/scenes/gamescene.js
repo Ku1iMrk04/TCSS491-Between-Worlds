@@ -281,22 +281,19 @@ class GameScene extends Scene {
             this.game.camera.applyTransform(ctx);
         }
 
-        // Dream state background tint (world space)
-        if (this.player && this.player.inDreamState) {
-            ctx.save();
-            ctx.fillStyle = "rgba(100, 0, 150, 0.15)";
-            const cam = this.game.camera;
-            ctx.fillRect(cam.x, cam.y, cam.viewportWidth, cam.viewportHeight);
-            ctx.restore();
-        }
-
         if (this.game.tileMap) {
-            this.game.tileMap.drawBackground(ctx);
-            this.game.tileMap.drawForeground(ctx);
+            // Dream state: show collision shapes in white on black background
+            if (this.player && this.player.inDreamState) {
+                this.game.tileMap.drawCollisionView(ctx);
+            } else {
+                // Normal rendering
+                this.game.tileMap.drawBackground(ctx);
+                this.game.tileMap.drawForeground(ctx);
 
-            // DEBUG: Draw collision hitboxes (only when debugging is enabled)
-            if (this.game.options?.debugging) {
-                this.game.tileMap.drawDebug(ctx);
+                // DEBUG: Draw collision hitboxes (only when debugging is enabled)
+                if (this.game.options?.debugging) {
+                    this.game.tileMap.drawDebug(ctx);
+                }
             }
         }
 

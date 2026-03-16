@@ -118,6 +118,26 @@ class Player extends Actor {
         this.vx = 0;
         this.vy = 0;
 
+        // If in dream state, switch back to normal form for death animation
+        if (this.inDreamState) {
+            this.inDreamState = false;
+
+            // Switch to normal animator
+            this.animator = this.normalAnimator;
+
+            // Resize hitbox back to kid dimensions
+            const widthDiff = this.width - this.kidWidth;
+            const heightDiff = this.height - this.kidHeight;
+            this.width = this.kidWidth;
+            this.height = this.kidHeight;
+            // Center the hitbox horizontally and keep feet position
+            this.x += widthDiff / 2;
+            this.y += heightDiff;
+
+            // Reset speed
+            this.speed /= this.dreamSpeedMultiplier;
+        }
+
         // Play death animation
         if (this.animator) {
             this.animator.setAnimation("die", this.facing, false);
