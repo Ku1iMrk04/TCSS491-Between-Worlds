@@ -1,6 +1,6 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <tileset version="1.10" tiledversion="1.11.2" name="bg_prison_foreground_0" tilewidth="32" tileheight="32" tilecount="756" columns="27">
- <image source="TCSS491-Between-Worlds/assets/maps/MapAssets/bg_prison_foreground_0.png" width="865" height="896"/>
+ <image source="bg_prison_foreground_0.png" width="865" height="896"/>
  <tile id="194">
   <objectgroup draworder="index" id="2">
    <object id="1" x="0" y="0">

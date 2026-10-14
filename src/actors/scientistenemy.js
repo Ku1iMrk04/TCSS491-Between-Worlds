@@ -26,6 +26,9 @@ const SCIENTIST_DEFAULT_AIM_MIN_DEGREES = -85;
 const SCIENTIST_DEFAULT_AIM_MAX_DEGREES = 85;
 const SCIENTIST_DEFAULT_DEATH_BODY_PERSIST_SECONDS = 2;
 const SCIENTIST_DEFAULT_TURN_UNFLIPPED_END_FACING = "right";
+const SCIENTIST_PATROL_MIN = 1.0; // min seconds per patrol direction
+const SCIENTIST_PATROL_MAX = 2.5; // max seconds per patrol direction
+const SCIENTIST_PATROL_SPEED = 60;     // slower pace while idle
 
 class ScientistEnemy extends Enemy {
     constructor(game, x, y) {
@@ -48,6 +51,11 @@ class ScientistEnemy extends Enemy {
 
         // Scientists are ranged now; body contact should not be lethal.
         this.contactDamage = SCIENTIST_CONTACT_DAMAGE;
+
+        // Patrol (idle pacing) settings
+        this.patrolSpeed = SCIENTIST_PATROL_SPEED;
+        this.patrolDir = 1;
+        this.patrolTimer = Math.random() * SCIENTIST_PATROL_MIN + Math.random() * (SCIENTIST_PATROL_MAX - SCIENTIST_PATROL_MIN); // randomize start phase
 
         this.animator = new Animator(SCIENTIST_SPRITE_NAME, this.game.assetManager);
         this.animator.setScale(this.scale);
@@ -168,7 +176,7 @@ class ScientistEnemy extends Enemy {
             this.visualFacing = this.turnTargetFacing;
         }
 
-        if (!this.turnInProgress && this.facing !== this.visualFacing) {
+        if (!this.turnInProgress && this.facing !== this.visualFacing && !this.isAttackState()) {
             this.startTurn(this.facing);
         }
 
@@ -314,7 +322,15 @@ class ScientistEnemy extends Enemy {
                     this.animator.setAnimation(this.idleAnimation, this.facing, true);
                 }
             }
+
+            // Time-based patrol: walk one direction, then reverse every 2 seconds
+            this.patrolTimer -= dt;
+            if (this.patrolTimer <= 0) {
+                this.patrolDir = -this.patrolDir;
+                this.patrolTimer = SCIENTIST_PATROL_MIN + Math.random() * (SCIENTIST_PATROL_MAX - SCIENTIST_PATROL_MIN);
+            }
             this.vx = 0;
+            this.facing = this.patrolDir > 0 ? "right" : "left";
 
         // --- HOLD POSITION: already in attack stance ---
         // Leave attack mode if the player escapes range OR breaks line-of-sight.
