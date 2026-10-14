@@ -1,22 +1,14 @@
 import Scene from "./scene.js";
 import GameScene from "./gamescene.js";
-import { drawOverlay } from "../ui/MenuOverlays.js";
 
 class MenuScene extends Scene {
     constructor(game, menuBgImage, levelBgImage) {
         super(game);
         this.menuBgImage  = menuBgImage;
         this.levelBgImage = levelBgImage;
-        this.options      = ["Start Game", "How to Play", "Credits"];
-        this.selectedIndex = 0;
 
-        // "howtoplay" | "credits" | null
-        this.overlay = null;
-        this.closeBtnRect = null;
-
-        this.buttonRects  = [];
-        this.hoveredIndex = -1;
-        this.hoverScales  = this.options.map(() => 0);
+        this.startHover   = false;
+        this.startScale    = 0;
         this.elapsed      = 0;
 
         // Floating dream particles
@@ -116,34 +108,13 @@ class MenuScene extends Scene {
 
     onKeyDown(event) {
         this._ensureMusic();
-        if (this.overlay) {
-            if (event.code === "Escape") this.overlay = null;
-            return;
-        }
-        switch (event.code) {
-            case "ArrowUp":
-                this.selectedIndex = (this.selectedIndex + this.options.length - 1) % this.options.length;
-                break;
-            case "ArrowDown":
-                this.selectedIndex = (this.selectedIndex + 1) % this.options.length;
-                break;
-            case "Enter":
-                this.activateSelection();
-                break;
+        if (event.code === "Enter" || event.code === "Space") {
+            this.start();
         }
     }
 
     onClick(x, y) {
         this._ensureMusic();
-        if (this.overlay) {
-            if (this.closeBtnRect) {
-                const r = this.closeBtnRect;
-                if (x >= r.x && x <= r.x + r.w && y >= r.y && y <= r.y + r.h) {
-                    this.overlay = null;
-                }
-            }
-            return;
-        }
         // Mute button
         if (this.muteBtnRect) {
             const r = this.muteBtnRect;
@@ -152,25 +123,19 @@ class MenuScene extends Scene {
                 return;
             }
         }
-
-        for (let i = 0; i < this.buttonRects.length; i++) {
-            const r = this.buttonRects[i];
-            if (x >= r.x && x <= r.x + r.w && y >= r.y && y <= r.y + r.h) {
-                this.selectedIndex = i;
-                this.activateSelection();
+        // Volume slider (handled via drag in update(), but a bare click shouldn't start the game)
+        if (this.sliderRect) {
+            const r = this.sliderRect;
+            if (x >= r.x - 10 && x <= r.x + r.w + 10 && y >= r.y - 12 && y <= r.y + r.h + 12) {
                 return;
             }
         }
+
+        this.start();
     }
 
-    activateSelection() {
-        if (this.selectedIndex === 0) {
-            this.game.sceneManager.changeScene(new GameScene(this.game, this.levelBgImage, 0));
-        } else if (this.selectedIndex === 1) {
-            this.overlay = "howtoplay";
-        } else if (this.selectedIndex === 2) {
-            this.overlay = "credits";
-        }
+    start() {
+        this.game.sceneManager.changeScene(new GameScene(this.game, this.levelBgImage, 0));
     }
 
     draw(ctx) {
@@ -216,11 +181,14 @@ class MenuScene extends Scene {
         // Title with glitch (effect 1)
         this._drawTitle(ctx, cx, h);
 
-        // Divider between title and buttons (effect 7)
-        this._drawMenuDivider(ctx, w, h / 2 - 108);
+        // Tagline
+        this._drawTagline(ctx, cx, h);
 
-        // Buttons
-        this._drawButtons(ctx, h, cx);
+        // Divider between title and prompt (effect 7)
+        this._drawMenuDivider(ctx, w, h / 2 - 20);
+
+        // Start prompt
+        this._drawStartPrompt(ctx, h, cx);
 
         // Volume slider
         this._drawVolumeSlider(ctx, cx, h);
@@ -228,12 +196,17 @@ class MenuScene extends Scene {
         // CRT scanlines on top of everything (effect 3)
         this._drawScanlines(ctx, w, h);
 
-        // Overlay (How to Play / Credits)
-        if (this.overlay) {
-            this.closeBtnRect = drawOverlay(ctx, w, h, this.overlay);
-        }
-
         ctx.textAlign = "left";
+    }
+
+    _drawTagline(ctx, cx, h) {
+        ctx.save();
+        ctx.textAlign    = "center";
+        ctx.textBaseline = "alphabetic";
+        ctx.font      = '600 20px "Oxanium", sans-serif';
+        ctx.fillStyle = "rgba(225,200,255,0.68)";
+        ctx.fillText("Slip between the real and the dream. Clear every room to wake up.", cx, h / 2 - 95);
+        ctx.restore();
     }
 
     // Effect 1: Title with chromatic aberration glitch
@@ -381,69 +354,30 @@ class MenuScene extends Scene {
         ctx.restore();
     }
 
-    _drawButtons(ctx, h, cx) {
-        ctx.textAlign    = "center";
-        ctx.textBaseline = "alphabetic";
-        ctx.font = '36px "Oxanium", sans-serif';
-
-        const startY = h / 2 - 10;
-        const lineH  = 92;
-        const btnW   = 420;
-        const btnH   = 66;
-
-        this.buttonRects  = [];
-        this.hoveredIndex = -1;
+    // Single breathing "press to start" prompt — content, not a button list
+    _drawStartPrompt(ctx, h, cx) {
+        const y = h / 2 + 50;
 
         const mouse = this.game.mouse;
-        if (mouse) {
-            for (let i = 0; i < this.options.length; i++) {
-                const bx = cx - btnW / 2;
-                const by = startY + i * lineH - btnH / 2 - 8;
-                if (mouse.x >= bx && mouse.x <= bx + btnW && mouse.y >= by && mouse.y <= by + btnH) {
-                    this.hoveredIndex  = i;
-                    this.selectedIndex = i;
-                }
-            }
-        }
+        this.promptRect = { x: cx - 220, y: y - 34, w: 440, h: 60 };
+        this.startHover = !!(mouse && mouse.x >= this.promptRect.x && mouse.x <= this.promptRect.x + this.promptRect.w
+            && mouse.y >= this.promptRect.y && mouse.y <= this.promptRect.y + this.promptRect.h);
 
-        for (let i = 0; i < this.options.length; i++) {
-            const target = (i === this.hoveredIndex || i === this.selectedIndex) ? 1 : 0;
-            this.hoverScales[i] += (target - this.hoverScales[i]) * 0.12;
-        }
+        const target = this.startHover ? 1 : 0;
+        this.startScale += (target - this.startScale) * 0.12;
 
-        for (let i = 0; i < this.options.length; i++) {
-            const y    = startY + i * lineH;
-            const btnX = cx - btnW / 2;
-            const btnY = y - btnH / 2 - 8;
-            const t    = this.hoverScales[i];
-            const scale = 1 + t * 0.05;
+        const pulse = 0.75 + Math.sin(this.elapsed * 2.4) * 0.25;
+        const glow  = 14 + pulse * 10 + this.startScale * 14;
 
-            ctx.save();
-            ctx.translate(cx, btnY + btnH / 2);
-            ctx.scale(scale, scale);
-            ctx.translate(-cx, -(btnY + btnH / 2));
-
-            ctx.fillStyle   = `rgba(${20 + Math.round(70 * t)}, 0, ${40 + Math.round(100 * t)}, ${0.08 + t * 0.2})`;
-            ctx.strokeStyle = `rgba(${140 + Math.round(52 * t)}, ${Math.round(60 * t)}, ${200 + Math.round(52 * t)}, ${0.35 + t * 0.55})`;
-            ctx.lineWidth   = 1.8;
-            ctx.beginPath();
-            ctx.roundRect(btnX, btnY, btnW, btnH, 8);
-            ctx.fill();
-            ctx.stroke();
-
-            if (t > 0.01) {
-                ctx.shadowColor = "#c084fc";
-                ctx.shadowBlur  = t * 22;
-            }
-
-            ctx.fillStyle   = `rgba(255,255,255,${0.68 + t * 0.32})`;
-            ctx.shadowColor = "transparent";
-            ctx.shadowBlur  = 0;
-            ctx.fillText(this.options[i], cx, y);
-            ctx.restore();
-
-            this.buttonRects.push({ x: btnX, y: btnY, w: btnW, h: btnH });
-        }
+        ctx.save();
+        ctx.textAlign    = "center";
+        ctx.textBaseline = "alphabetic";
+        ctx.font = '600 30px "Oxanium", sans-serif';
+        ctx.shadowColor = "#e879f9";
+        ctx.shadowBlur  = glow;
+        ctx.fillStyle   = `rgba(255,255,255,${0.75 + this.startScale * 0.25})`;
+        ctx.fillText("CLICK OR PRESS ENTER TO BEGIN", cx, y);
+        ctx.restore();
     }
 }
 

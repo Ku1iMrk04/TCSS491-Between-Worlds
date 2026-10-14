@@ -95,4 +95,6 @@ ASSET_MANAGER.downloadAll(async () => {
     gameEngine.sceneManager.changeScene(new MenuScene(gameEngine, menuBg, levelBg));
 
 	gameEngine.start();
+
+	document.getElementById("loadingScreen")?.classList.add("is-hidden");
 });
