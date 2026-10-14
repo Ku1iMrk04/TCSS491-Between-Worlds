@@ -29,6 +29,51 @@ const SCIENTIST_DEFAULT_TURN_UNFLIPPED_END_FACING = "right";
 const SCIENTIST_PATROL_MIN = 1.0; // min seconds per patrol direction
 const SCIENTIST_PATROL_MAX = 2.5; // max seconds per patrol direction
 const SCIENTIST_PATROL_SPEED = 60;     // slower pace while idle
+const TURRET_SPRITE_NAME = "turret_sprite_sheet";
+
+function drawCenteredRotatedSprite(ctx, image, source, centerX, centerY, scale, angle) {
+    if (!image || !source) return;
+    const drawWidth = source.w * scale;
+    const drawHeight = source.h * scale;
+    ctx.save();
+    ctx.imageSmoothingEnabled = false;
+    ctx.translate(Math.round(centerX), Math.round(centerY));
+    ctx.rotate(angle);
+    ctx.drawImage(image, source.x, source.y, source.w, source.h, -drawWidth / 2, -drawHeight / 2, drawWidth, drawHeight);
+    ctx.restore();
+}
+
+class ScientistProjectile extends EnemyProjectile {
+    constructor(game, x, y, vx, vy, spriteAtlas) {
+        super(game, x, y, vx, vy, {
+            damage: SCIENTIST_PROJECTILE_DAMAGE,
+            radius: SCIENTIST_PROJECTILE_RADIUS,
+            color: SCIENTIST_PROJECTILE_COLOR
+        });
+        this.spriteAtlas = spriteAtlas;
+        this.scale = 0.75;
+        this.angle = Math.atan2(vy, vx);
+    }
+
+    draw(ctx, game) {
+        const source = this.spriteAtlas?.getFrameSource("bullet", 0);
+        if (!this.spriteAtlas?.spriteSheet || !source) {
+            super.draw(ctx, game);
+            return;
+        }
+        drawCenteredRotatedSprite(ctx, this.spriteAtlas.spriteSheet, source, this.x, this.y, this.scale, this.angle);
+        if (game.options?.debugging) {
+            ctx.save();
+            ctx.strokeStyle = "#ffffff";
+            ctx.lineWidth = 1;
+            ctx.globalAlpha = 0.7;
+            ctx.beginPath();
+            ctx.arc(this.x, this.y, this.radius, 0, Math.PI * 2);
+            ctx.stroke();
+            ctx.restore();
+        }
+    }
+}
 
 class ScientistEnemy extends Enemy {
     constructor(game, x, y) {
@@ -437,12 +482,8 @@ class ScientistEnemy extends Enemy {
         const vx = (dx / dist) * projectileSpeed;
         const vy = (dy / dist) * projectileSpeed;
 
-        const projectile = new EnemyProjectile(this.game, spawnX, spawnY, vx, vy, {
-            damage: this.projectileDamage,
-            radius: this.projectileRadius,
-            life: this.projectileLife,
-            color: this.projectileColor
-        });
+        const turretAtlas = this.game.assetManager.getSpriteAtlas(`assets/${TURRET_SPRITE_NAME}.png`);
+        const projectile = new ScientistProjectile(this.game, spawnX, spawnY, vx, vy, turretAtlas);
 
         if (typeof this.game.addEntity === "function") {
             this.game.addEntity(projectile);

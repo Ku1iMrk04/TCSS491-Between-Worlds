@@ -427,6 +427,7 @@ class Turret extends Enemy {
         const vx = Math.cos(aimData.worldAngle) * TURRET_PROJECTILE_SPEED;
         const vy = Math.sin(aimData.worldAngle) * TURRET_PROJECTILE_SPEED;
         const projectile = new TurretProjectile(this.game, muzzle.x, muzzle.y, vx, vy, this.spriteAtlas);
+        if (this.game.soundManager) this.game.soundManager.playSfx("laserGun");
         this.game.addEntity(projectile);
         this.addSparkEffect(aimData.worldAngle);
     }
